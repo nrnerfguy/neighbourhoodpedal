@@ -297,27 +297,52 @@ function NeighborView() {
         <Card title="Your shopping list" subtitle={`Tap items from ${activeStoreData.name} to add — prices are set by the store`}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {activeStoreData.catalog.map((c) => {
-              const count = items.filter((i) => i.name === c.name).length;
+              const existing = items.find((i) => i.name === c.name);
+              const qty = existing?.qty ?? 0;
               return (
-                <button
+                <div
                   key={c.name}
-                  onClick={() => addCatalogItem(c)}
-                  className="relative text-left rounded-xl border border-border bg-white hover:border-primary hover:bg-[var(--mint-soft)] active:scale-[0.98] transition p-3 min-w-0"
+                  className={`relative rounded-xl border bg-white p-3 min-w-0 transition ${
+                    qty > 0 ? "border-primary bg-[var(--mint-soft)]" : "border-border"
+                  }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xl shrink-0" aria-hidden>{c.emoji}</span>
-                    <span className="text-sm font-medium truncate">{c.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => addCatalogItem(c)}
+                    className="block w-full text-left active:scale-[0.98] transition"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xl shrink-0" aria-hidden>{c.emoji}</span>
+                      <span className="text-sm font-medium truncate">{c.name}</span>
+                    </div>
+                    <div className="mt-1 text-xs tabular-nums text-muted-foreground">
+                      ${c.price.toFixed(2)}
+                    </div>
+                  </button>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    {qty > 0 ? (
+                      <div className="flex items-center gap-1 rounded-full border border-[var(--forest)]/20 bg-white p-0.5">
+                        <StepBtn label="−" onClick={() => existing && setQty(existing.id, qty - 1)} />
+                        <span className="min-w-6 text-center text-xs font-bold tabular-nums text-[var(--forest)]">
+                          {qty}
+                        </span>
+                        <StepBtn label="+" onClick={() => addCatalogItem(c)} />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => addCatalogItem(c)}
+                        className="text-[11px] font-bold text-[var(--forest)] hover:underline"
+                      >
+                        + Add
+                      </button>
+                    )}
+                    {qty > 0 && (
+                      <span className="text-[11px] tabular-nums font-semibold text-[var(--forest)]">
+                        ${(c.price * qty).toFixed(2)}
+                      </span>
+                    )}
                   </div>
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <span className="text-xs tabular-nums text-muted-foreground">${c.price.toFixed(2)}</span>
-                    <span className="text-[11px] font-bold text-[var(--forest)]">+ Add</span>
-                  </div>
-                  {count > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 grid place-items-center text-[10px] font-bold rounded-full bg-primary text-[var(--forest)] border border-white shadow-[var(--shadow-soft)]">
-                      {count}
-                    </span>
-                  )}
-                </button>
+                </div>
               );
             })}
           </div>
@@ -340,10 +365,16 @@ function NeighborView() {
                   )}
                 </button>
                 <span className={`flex-1 min-w-0 truncate text-sm ${it.done ? "line-through text-muted-foreground" : ""}`}>
+                  <span className="mr-1.5" aria-hidden>{it.emoji}</span>
                   {it.name}
                 </span>
-                <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
-                  ~${it.price.toFixed(2)}
+                <div className="shrink-0 flex items-center gap-1 rounded-full border border-border bg-white p-0.5">
+                  <StepBtn label="−" onClick={() => setQty(it.id, it.qty - 1)} />
+                  <span className="min-w-6 text-center text-xs font-bold tabular-nums">{it.qty}</span>
+                  <StepBtn label="+" onClick={() => setQty(it.id, it.qty + 1)} />
+                </div>
+                <span className="shrink-0 w-16 text-right text-sm font-medium tabular-nums text-muted-foreground">
+                  ~${(it.price * it.qty).toFixed(2)}
                 </span>
                 <button
                   onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
