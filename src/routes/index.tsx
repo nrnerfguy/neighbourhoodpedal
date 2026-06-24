@@ -107,16 +107,13 @@ function EscrowChip() {
   );
 }
 
-/** Square frame for the Pedal icon — never rounded. */
+/** Square, borderless frame for the Pedal icon. */
 export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" }) {
   const dim =
     size === "sm" ? "w-7 h-7" : size === "lg" ? "w-12 h-12" : size === "xl" ? "w-16 h-16" : "w-10 h-10";
   return (
-    <span
-      className={`inline-grid place-items-center ${dim} shrink-0 bg-white border border-[var(--forest)]/20 shadow-[var(--shadow-soft)] overflow-hidden`}
-      style={{ borderRadius: 4 }}
-    >
-      <img src={pedalIcon.url} alt="Pedal" className="w-full h-full object-cover" />
+    <span className={`inline-grid place-items-center ${dim} shrink-0 overflow-hidden`}>
+      <img src={pedalIcon.url} alt="Pedal" className="w-full h-full object-cover block" />
     </span>
   );
 }
