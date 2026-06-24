@@ -434,6 +434,18 @@ function NeighborView() {
   );
 }
 
+function StepBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-6 h-6 grid place-items-center rounded-full text-sm font-bold text-[var(--forest)] hover:bg-[var(--mint-soft)] transition"
+      aria-label={label === "+" ? "increase" : "decrease"}
+    >
+      {label}
+    </button>
+  );
+}
+
 function Card({
   title,
   subtitle,
