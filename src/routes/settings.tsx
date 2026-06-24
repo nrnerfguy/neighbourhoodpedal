@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSettings, riderPayout, platformShare } from "@/lib/settings";
+import { useSettings } from "@/lib/settings";
 import { IconFrame } from "./index";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
       { title: "Settings — Pedal" },
-      { name: "description", content: "Adjust units, neighborhood, fees, and rider preferences." },
+      { name: "description", content: "Adjust your Pedal preferences." },
     ],
   }),
   component: SettingsPage,
@@ -15,14 +15,10 @@ export const Route = createFileRoute("/settings")({
 function SettingsPage() {
   const { settings, update, reset } = useSettings();
 
-  const rider = riderPayout(settings.baseDeliveryFee);
-  const platform = platformShare(settings.baseDeliveryFee);
-
   return (
     <div className="min-h-screen bg-[var(--silver)]">
-      {/* Top bar */}
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/75 border-b border-border">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-3">
+        <div className="mx-auto max-w-2xl px-4 sm:px-6 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-3">
           <Link
             to="/"
             className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--forest)] hover:opacity-80"
@@ -45,15 +41,14 @@ function SettingsPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+      <main className="mx-auto max-w-2xl px-4 sm:px-6 py-6 sm:py-10 space-y-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Preferences</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Tune Pedal to fit your neighborhood. Changes save automatically.
+            Tune Pedal to fit how you ride and order. Changes save automatically.
           </p>
         </div>
 
-        {/* Units */}
         <Section title="Distance units" subtitle="How distances appear across the app.">
           <SegmentedControl
             value={settings.units}
@@ -65,71 +60,10 @@ function SettingsPage() {
           />
         </Section>
 
-        {/* Identity */}
-        <Section title="Your neighborhood" subtitle="Used in greetings and rider matching.">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Neighborhood">
-              <input
-                value={settings.neighborhood}
-                onChange={(e) => update("neighborhood", e.target.value)}
-                className="input"
-              />
-            </Field>
-            <Field label="Default rider name (demo)">
-              <input
-                value={settings.riderName}
-                onChange={(e) => update("riderName", e.target.value)}
-                className="input"
-              />
-            </Field>
-          </div>
-        </Section>
-
-        {/* Fees */}
-        <Section
-          title="Fees & rider payout"
-          subtitle="Riders always keep 95% of the delivery fee. Numbers below update everywhere."
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Base delivery fee ($)">
-              <input
-                type="number"
-                min={1}
-                step={0.25}
-                value={settings.baseDeliveryFee}
-                onChange={(e) =>
-                  update("baseDeliveryFee", Math.max(0, parseFloat(e.target.value) || 0))
-                }
-                className="input"
-              />
-            </Field>
-            <Field label="Platform service fee ($)">
-              <input
-                type="number"
-                min={0}
-                step={0.05}
-                value={settings.platformServiceFee}
-                onChange={(e) =>
-                  update("platformServiceFee", Math.max(0, parseFloat(e.target.value) || 0))
-                }
-                className="input"
-              />
-            </Field>
-          </div>
-
-          {/* Live split preview */}
-          <div className="mt-4 rounded-2xl border border-primary/30 bg-[var(--mint-soft)] p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-[var(--forest)]">
-            <Stat label="Delivery fee" value={`$${settings.baseDeliveryFee.toFixed(2)}`} />
-            <Stat label="Rider keeps (95%)" value={`$${rider.toFixed(2)}`} accent />
-            <Stat label="Platform cut (5%)" value={`$${platform.toFixed(2)}`} />
-          </div>
-        </Section>
-
-        {/* Toggles */}
-        <Section title="Notifications & summaries">
+        <Section title="Notifications">
           <Toggle
             label="Order push notifications"
-            description="Status updates while a rider is on the way."
+            description="Get status updates while a rider is on the way."
             checked={settings.notifications}
             onChange={(v) => update("notifications", v)}
           />
@@ -145,23 +79,6 @@ function SettingsPage() {
           Pedal · Settings are stored locally on this device.
         </p>
       </main>
-
-      <style>{`
-        .input {
-          width: 100%;
-          background: white;
-          border: 1px solid var(--border);
-          border-radius: 0.75rem;
-          padding: 0.625rem 0.875rem;
-          font-size: 0.875rem;
-          outline: none;
-          transition: all .15s ease;
-        }
-        .input:focus {
-          border-color: var(--primary);
-          box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 20%, transparent);
-        }
-      `}</style>
     </div>
   );
 }
@@ -183,15 +100,6 @@ function Section({
       </div>
       <div className="space-y-3">{children}</div>
     </section>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</span>
-      {children}
-    </label>
   );
 }
 
@@ -256,17 +164,6 @@ function Toggle({
           style={{ transform: checked ? "translateX(20px)" : "translateX(0)" }}
         />
       </button>
-    </div>
-  );
-}
-
-function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wider opacity-80 truncate">{label}</div>
-      <div className={`mt-0.5 tabular-nums font-extrabold ${accent ? "text-lg sm:text-xl" : "text-base sm:text-lg"}`}>
-        {value}
-      </div>
     </div>
   );
 }
