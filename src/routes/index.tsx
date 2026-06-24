@@ -416,6 +416,7 @@ function NeighborView() {
             <PriceCard
               itemsTotal={itemsTotal}
               deliveryFee={deliveryFee}
+              distanceMiles={activeStoreData.miles}
               platformFee={platformFee}
               rider={rider}
               platformCut={platformCut}
