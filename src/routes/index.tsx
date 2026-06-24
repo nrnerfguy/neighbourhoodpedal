@@ -280,8 +280,33 @@ function NeighborView() {
         </Card>
 
         {/* Shopping list */}
-        <Card title="Your shopping list" subtitle={`Ordering from ${activeStore}`}>
-          <ItemInput onAdd={addItem} />
+        <Card title="Your shopping list" subtitle={`Tap items from ${activeStoreData.name} to add — prices are set by the store`}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {activeStoreData.catalog.map((c) => {
+              const count = items.filter((i) => i.name === c.name).length;
+              return (
+                <button
+                  key={c.name}
+                  onClick={() => addCatalogItem(c)}
+                  className="relative text-left rounded-xl border border-border bg-white hover:border-primary hover:bg-[var(--mint-soft)] active:scale-[0.98] transition p-3 min-w-0"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xl shrink-0" aria-hidden>{c.emoji}</span>
+                    <span className="text-sm font-medium truncate">{c.name}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="text-xs tabular-nums text-muted-foreground">${c.price.toFixed(2)}</span>
+                    <span className="text-[11px] font-bold text-[var(--forest)]">+ Add</span>
+                  </div>
+                  {count > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 grid place-items-center text-[10px] font-bold rounded-full bg-primary text-[var(--forest)] border border-white shadow-[var(--shadow-soft)]">
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
           <ul className="mt-4 divide-y divide-border">
             {items.map((it) => (
               <li key={it.id} className="flex items-center gap-3 py-2.5 min-w-0">
