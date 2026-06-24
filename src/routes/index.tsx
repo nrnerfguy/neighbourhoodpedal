@@ -344,7 +344,7 @@ function NeighborView() {
             ))}
             {items.length === 0 && (
               <li className="py-6 text-center text-sm text-muted-foreground">
-                Your basket is empty — add an item above.
+                Your basket is empty — tap an item above to add it.
               </li>
             )}
           </ul>
