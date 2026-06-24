@@ -411,34 +411,6 @@ function Card({
   );
 }
 
-function ItemInput({ onAdd }: { onAdd: (v: string) => void }) {
-  const [val, setVal] = useState("");
-  const submit = () => {
-    onAdd(val);
-    setVal("");
-  };
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-border bg-[var(--silver)] focus-within:bg-white focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15 transition px-3 py-2 min-w-0">
-      <svg viewBox="0 0 20 20" className="shrink-0 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="9" cy="9" r="6" /><path d="M14 14l4 4" strokeLinecap="round" />
-      </svg>
-      <input
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && submit()}
-        placeholder='e.g. "1L Organic Milk (~$4.50)"'
-        className="flex-1 min-w-0 bg-transparent outline-none text-sm py-1.5"
-      />
-      <button
-        onClick={submit}
-        className="shrink-0 w-8 h-8 rounded-lg bg-primary text-[var(--forest)] font-bold shadow-[var(--shadow-mint)] hover:brightness-105 active:scale-95 transition"
-        aria-label="Add item"
-      >
-        +
-      </button>
-    </div>
-  );
-}
 
 function PriceCard({
   itemsTotal,
