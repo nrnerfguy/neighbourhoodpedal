@@ -253,8 +253,8 @@ function NeighborView() {
 
         {/* Stores carousel */}
         <Card title="Pick a local store" subtitle="Pre-verified neighborhood shops">
-          <div className="-mx-1 overflow-x-auto">
-            <div className="flex gap-3 px-1 pb-2 snap-x">
+          <div className="-mx-2 overflow-x-auto overflow-y-visible">
+            <div className="flex gap-3 px-2 py-2 snap-x">
               {STORES.map((s) => {
                 const active = activeStore === s.name;
                 return (
