@@ -121,8 +121,15 @@ export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" })
 /* ---------------- Neighbor View ---------------- */
 
 type CatalogItem = { name: string; price: number; emoji: string };
-type Item = { id: string; name: string; price: number; done: boolean };
+type Item = { id: string; name: string; price: number; emoji: string; qty: number; done: boolean };
 type Phase = "build" | "loading" | "tracking";
+
+/** Delivery fee: $2 base + $0.50 per km from store to drop-off. */
+const MILES_TO_KM = 1.60934;
+function computeDeliveryFee(miles: number) {
+  const km = miles * MILES_TO_KM;
+  return Math.round((2 + 0.5 * km) * 100) / 100;
+}
 
 const ERRAND_TYPES = ["All", "Grocery", "Pharmacy", "Bakery", "Custom Errand"];
 type Store = {
@@ -186,25 +193,32 @@ function NeighborView() {
   const [errand, setErrand] = useState("All");
   const [activeStore, setActiveStore] = useState(STORES[0].name);
   const [items, setItems] = useState<Item[]>([
-    { id: "1", name: "1L Organic Milk", price: 4.5, done: false },
-    { id: "2", name: "Sourdough loaf", price: 6.0, done: false },
-    { id: "3", name: "Bananas (bunch)", price: 2.25, done: false },
+    { id: "1", name: "1L Organic Milk", price: 4.5, emoji: "🥛", qty: 1, done: false },
+    { id: "2", name: "Sourdough loaf", price: 6.0, emoji: "🍞", qty: 1, done: false },
+    { id: "3", name: "Bananas (bunch)", price: 2.25, emoji: "🍌", qty: 2, done: false },
   ]);
   const [notes, setNotes] = useState("Leave on the front porch table, please don't ring the bell.");
   const [phase, setPhase] = useState<Phase>("build");
   const [trackStep, setTrackStep] = useState(0);
 
-  const itemsTotal = useMemo(() => items.reduce((s, i) => s + i.price, 0), [items]);
-  const deliveryFee = settings.baseDeliveryFee;
+  const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
+
+  const itemsTotal = useMemo(() => items.reduce((s, i) => s + i.price * i.qty, 0), [items]);
+  const deliveryFee = useMemo(() => computeDeliveryFee(activeStoreData.miles), [activeStoreData.miles]);
   const platformFee = settings.platformServiceFee;
   const rider = riderPayout(deliveryFee);
   const platformCut = platformShare(deliveryFee);
   const grandTotal = itemsTotal + deliveryFee + platformFee;
 
-  const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
-
   const addCatalogItem = (c: CatalogItem) => {
-    setItems((p) => [...p, { id: crypto.randomUUID(), name: c.name, price: c.price, done: false }]);
+    setItems((p) => {
+      const existing = p.find((i) => i.name === c.name);
+      if (existing) return p.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + 1 } : i));
+      return [...p, { id: crypto.randomUUID(), name: c.name, price: c.price, emoji: c.emoji, qty: 1, done: false }];
+    });
+  };
+  const setQty = (id: string, qty: number) => {
+    setItems((p) => (qty <= 0 ? p.filter((i) => i.id !== id) : p.map((i) => (i.id === id ? { ...i, qty } : i))));
   };
 
   const startOrder = () => {
@@ -283,27 +297,52 @@ function NeighborView() {
         <Card title="Your shopping list" subtitle={`Tap items from ${activeStoreData.name} to add — prices are set by the store`}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {activeStoreData.catalog.map((c) => {
-              const count = items.filter((i) => i.name === c.name).length;
+              const existing = items.find((i) => i.name === c.name);
+              const qty = existing?.qty ?? 0;
               return (
-                <button
+                <div
                   key={c.name}
-                  onClick={() => addCatalogItem(c)}
-                  className="relative text-left rounded-xl border border-border bg-white hover:border-primary hover:bg-[var(--mint-soft)] active:scale-[0.98] transition p-3 min-w-0"
+                  className={`relative rounded-xl border bg-white p-3 min-w-0 transition ${
+                    qty > 0 ? "border-primary bg-[var(--mint-soft)]" : "border-border"
+                  }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xl shrink-0" aria-hidden>{c.emoji}</span>
-                    <span className="text-sm font-medium truncate">{c.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => addCatalogItem(c)}
+                    className="block w-full text-left active:scale-[0.98] transition"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xl shrink-0" aria-hidden>{c.emoji}</span>
+                      <span className="text-sm font-medium truncate">{c.name}</span>
+                    </div>
+                    <div className="mt-1 text-xs tabular-nums text-muted-foreground">
+                      ${c.price.toFixed(2)}
+                    </div>
+                  </button>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    {qty > 0 ? (
+                      <div className="flex items-center gap-1 rounded-full border border-[var(--forest)]/20 bg-white p-0.5">
+                        <StepBtn label="−" onClick={() => existing && setQty(existing.id, qty - 1)} />
+                        <span className="min-w-6 text-center text-xs font-bold tabular-nums text-[var(--forest)]">
+                          {qty}
+                        </span>
+                        <StepBtn label="+" onClick={() => addCatalogItem(c)} />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => addCatalogItem(c)}
+                        className="text-[11px] font-bold text-[var(--forest)] hover:underline"
+                      >
+                        + Add
+                      </button>
+                    )}
+                    {qty > 0 && (
+                      <span className="text-[11px] tabular-nums font-semibold text-[var(--forest)]">
+                        ${(c.price * qty).toFixed(2)}
+                      </span>
+                    )}
                   </div>
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <span className="text-xs tabular-nums text-muted-foreground">${c.price.toFixed(2)}</span>
-                    <span className="text-[11px] font-bold text-[var(--forest)]">+ Add</span>
-                  </div>
-                  {count > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 grid place-items-center text-[10px] font-bold rounded-full bg-primary text-[var(--forest)] border border-white shadow-[var(--shadow-soft)]">
-                      {count}
-                    </span>
-                  )}
-                </button>
+                </div>
               );
             })}
           </div>
@@ -326,10 +365,16 @@ function NeighborView() {
                   )}
                 </button>
                 <span className={`flex-1 min-w-0 truncate text-sm ${it.done ? "line-through text-muted-foreground" : ""}`}>
+                  <span className="mr-1.5" aria-hidden>{it.emoji}</span>
                   {it.name}
                 </span>
-                <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
-                  ~${it.price.toFixed(2)}
+                <div className="shrink-0 flex items-center gap-1 rounded-full border border-border bg-white p-0.5">
+                  <StepBtn label="−" onClick={() => setQty(it.id, it.qty - 1)} />
+                  <span className="min-w-6 text-center text-xs font-bold tabular-nums">{it.qty}</span>
+                  <StepBtn label="+" onClick={() => setQty(it.id, it.qty + 1)} />
+                </div>
+                <span className="shrink-0 w-16 text-right text-sm font-medium tabular-nums text-muted-foreground">
+                  ~${(it.price * it.qty).toFixed(2)}
                 </span>
                 <button
                   onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
@@ -371,6 +416,7 @@ function NeighborView() {
             <PriceCard
               itemsTotal={itemsTotal}
               deliveryFee={deliveryFee}
+              distanceMiles={activeStoreData.miles}
               platformFee={platformFee}
               rider={rider}
               platformCut={platformCut}
@@ -386,6 +432,18 @@ function NeighborView() {
 
       {phase === "loading" && <RideOverlay />}
     </div>
+  );
+}
+
+function StepBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-6 h-6 grid place-items-center rounded-full text-sm font-bold text-[var(--forest)] hover:bg-[var(--mint-soft)] transition"
+      aria-label={label === "+" ? "increase" : "decrease"}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -415,6 +473,7 @@ function Card({
 function PriceCard({
   itemsTotal,
   deliveryFee,
+  distanceMiles,
   platformFee,
   rider,
   platformCut,
@@ -425,6 +484,7 @@ function PriceCard({
 }: {
   itemsTotal: number;
   deliveryFee: number;
+  distanceMiles: number;
   platformFee: number;
   rider: number;
   platformCut: number;
@@ -433,6 +493,7 @@ function PriceCard({
   onStart: () => void;
   disabled: boolean;
 }) {
+  const km = distanceMiles * MILES_TO_KM;
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-lift)] overflow-hidden">
       <div className="bg-gradient-to-br from-[var(--mint-soft)] via-white to-white p-5 sm:p-6 border-b border-border">
@@ -464,6 +525,10 @@ function PriceCard({
           }
           value={`$${deliveryFee.toFixed(2)}`}
         />
+        <div className="-mt-1 text-[11px] text-muted-foreground">
+          $2.00 base + $0.50 / km · {km.toFixed(2)} km to store
+        </div>
+
 
         {/* 95% split breakdown */}
         <div className="rounded-xl bg-[var(--mint-soft)] border border-primary/30 px-3 py-2.5 text-xs text-[var(--forest)] space-y-1">
