@@ -525,6 +525,10 @@ function PriceCard({
           }
           value={`$${deliveryFee.toFixed(2)}`}
         />
+        <div className="-mt-1 text-[11px] text-muted-foreground">
+          $2.00 base + $0.50 / km · {km.toFixed(2)} km to store
+        </div>
+
 
         {/* 95% split breakdown */}
         <div className="rounded-xl bg-[var(--mint-soft)] border border-primary/30 px-3 py-2.5 text-xs text-[var(--forest)] space-y-1">
