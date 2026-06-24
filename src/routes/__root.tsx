@@ -123,6 +123,7 @@ function RootComponent() {
       <SettingsProvider>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <Toaster position="bottom-center" />
       </SettingsProvider>
     </QueryClientProvider>
   );
