@@ -120,16 +120,65 @@ export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" })
 
 /* ---------------- Neighbor View ---------------- */
 
+type CatalogItem = { name: string; price: number; emoji: string };
 type Item = { id: string; name: string; price: number; done: boolean };
 type Phase = "build" | "loading" | "tracking";
 
 const ERRAND_TYPES = ["All", "Grocery", "Pharmacy", "Bakery", "Custom Errand"];
-const STORES = [
-  { name: "Community Grocer", tag: "Fresh produce", miles: 0.4, emoji: "🥬" },
-  { name: "Maple St. Pharmacy", tag: "OTC & scripts", miles: 0.6, emoji: "💊" },
-  { name: "Sunrise Bakery", tag: "Bread & pastries", miles: 0.3, emoji: "🥐" },
-  { name: "Corner Hardware", tag: "Tools & odds", miles: 0.8, emoji: "🔧" },
-  { name: "Green Leaf Market", tag: "Organic", miles: 1.1, emoji: "🌿" },
+type Store = {
+  name: string;
+  tag: string;
+  miles: number;
+  emoji: string;
+  catalog: CatalogItem[];
+};
+const STORES: Store[] = [
+  {
+    name: "Community Grocer", tag: "Fresh produce", miles: 0.4, emoji: "🥬",
+    catalog: [
+      { name: "1L Organic Milk", price: 4.5, emoji: "🥛" },
+      { name: "Eggs (dozen)", price: 5.75, emoji: "🥚" },
+      { name: "Bananas (bunch)", price: 2.25, emoji: "🍌" },
+      { name: "Avocado", price: 1.5, emoji: "🥑" },
+      { name: "Tomatoes (lb)", price: 2.8, emoji: "🍅" },
+      { name: "Spinach bag", price: 3.25, emoji: "🥬" },
+    ],
+  },
+  {
+    name: "Maple St. Pharmacy", tag: "OTC & scripts", miles: 0.6, emoji: "💊",
+    catalog: [
+      { name: "Ibuprofen 200mg", price: 7.99, emoji: "💊" },
+      { name: "Bandages pack", price: 4.5, emoji: "🩹" },
+      { name: "Vitamin C", price: 9.25, emoji: "🍊" },
+      { name: "Cough syrup", price: 11.0, emoji: "🧴" },
+    ],
+  },
+  {
+    name: "Sunrise Bakery", tag: "Bread & pastries", miles: 0.3, emoji: "🥐",
+    catalog: [
+      { name: "Sourdough loaf", price: 6.0, emoji: "🍞" },
+      { name: "Butter croissant", price: 3.5, emoji: "🥐" },
+      { name: "Blueberry muffin", price: 3.0, emoji: "🧁" },
+      { name: "Baguette", price: 4.25, emoji: "🥖" },
+    ],
+  },
+  {
+    name: "Corner Hardware", tag: "Tools & odds", miles: 0.8, emoji: "🔧",
+    catalog: [
+      { name: "AA batteries (8pk)", price: 8.5, emoji: "🔋" },
+      { name: "Duct tape", price: 6.0, emoji: "🩶" },
+      { name: "Lightbulb LED", price: 4.75, emoji: "💡" },
+    ],
+  },
+  {
+    name: "Green Leaf Market", tag: "Organic", miles: 1.1, emoji: "🌿",
+    catalog: [
+      { name: "Oat milk", price: 5.25, emoji: "🥛" },
+      { name: "Granola jar", price: 8.0, emoji: "🥣" },
+      { name: "Kombucha", price: 4.5, emoji: "🍶" },
+      { name: "Mixed berries", price: 6.5, emoji: "🫐" },
+    ],
+  },
 ];
 
 function NeighborView() {
