@@ -201,13 +201,10 @@ function NeighborView() {
   const platformCut = platformShare(deliveryFee);
   const grandTotal = itemsTotal + deliveryFee + platformFee;
 
-  const addItem = (raw: string) => {
-    const trimmed = raw.trim();
-    if (!trimmed) return;
-    const match = trimmed.match(/~?\$?(\d+(\.\d{1,2})?)/);
-    const price = match ? parseFloat(match[1]) : 0;
-    const name = trimmed.replace(/\(?~?\$?\d+(\.\d{1,2})?\)?/, "").trim() || trimmed;
-    setItems((p) => [...p, { id: crypto.randomUUID(), name, price, done: false }]);
+  const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
+
+  const addCatalogItem = (c: CatalogItem) => {
+    setItems((p) => [...p, { id: crypto.randomUUID(), name: c.name, price: c.price, done: false }]);
   };
 
   const startOrder = () => {
