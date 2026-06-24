@@ -548,8 +548,7 @@ function RideOverlay() {
         <img
           src={pedalIcon.url}
           alt=""
-          className="absolute bottom-2 left-0 w-20 h-20 shadow-[var(--shadow-lift)] animate-pedal-ride"
-          style={{ borderRadius: 4 }}
+          className="absolute bottom-2 left-0 w-20 h-20 animate-pedal-ride"
         />
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--forest)]/30 to-transparent" />
       </div>
