@@ -107,32 +107,78 @@ function EscrowChip() {
   );
 }
 
-/** Square frame for the Pedal icon — never rounded. */
+/** Square, borderless frame for the Pedal icon. */
 export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" }) {
   const dim =
     size === "sm" ? "w-7 h-7" : size === "lg" ? "w-12 h-12" : size === "xl" ? "w-16 h-16" : "w-10 h-10";
   return (
-    <span
-      className={`inline-grid place-items-center ${dim} shrink-0 bg-white border border-[var(--forest)]/20 shadow-[var(--shadow-soft)] overflow-hidden`}
-      style={{ borderRadius: 4 }}
-    >
-      <img src={pedalIcon.url} alt="Pedal" className="w-full h-full object-cover" />
+    <span className={`inline-grid place-items-center ${dim} shrink-0 overflow-hidden`}>
+      <img src={pedalIcon.url} alt="Pedal" className="w-full h-full object-cover block" />
     </span>
   );
 }
 
 /* ---------------- Neighbor View ---------------- */
 
+type CatalogItem = { name: string; price: number; emoji: string };
 type Item = { id: string; name: string; price: number; done: boolean };
 type Phase = "build" | "loading" | "tracking";
 
 const ERRAND_TYPES = ["All", "Grocery", "Pharmacy", "Bakery", "Custom Errand"];
-const STORES = [
-  { name: "Community Grocer", tag: "Fresh produce", miles: 0.4, emoji: "🥬" },
-  { name: "Maple St. Pharmacy", tag: "OTC & scripts", miles: 0.6, emoji: "💊" },
-  { name: "Sunrise Bakery", tag: "Bread & pastries", miles: 0.3, emoji: "🥐" },
-  { name: "Corner Hardware", tag: "Tools & odds", miles: 0.8, emoji: "🔧" },
-  { name: "Green Leaf Market", tag: "Organic", miles: 1.1, emoji: "🌿" },
+type Store = {
+  name: string;
+  tag: string;
+  miles: number;
+  emoji: string;
+  catalog: CatalogItem[];
+};
+const STORES: Store[] = [
+  {
+    name: "Community Grocer", tag: "Fresh produce", miles: 0.4, emoji: "🥬",
+    catalog: [
+      { name: "1L Organic Milk", price: 4.5, emoji: "🥛" },
+      { name: "Eggs (dozen)", price: 5.75, emoji: "🥚" },
+      { name: "Bananas (bunch)", price: 2.25, emoji: "🍌" },
+      { name: "Avocado", price: 1.5, emoji: "🥑" },
+      { name: "Tomatoes (lb)", price: 2.8, emoji: "🍅" },
+      { name: "Spinach bag", price: 3.25, emoji: "🥬" },
+    ],
+  },
+  {
+    name: "Maple St. Pharmacy", tag: "OTC & scripts", miles: 0.6, emoji: "💊",
+    catalog: [
+      { name: "Ibuprofen 200mg", price: 7.99, emoji: "💊" },
+      { name: "Bandages pack", price: 4.5, emoji: "🩹" },
+      { name: "Vitamin C", price: 9.25, emoji: "🍊" },
+      { name: "Cough syrup", price: 11.0, emoji: "🧴" },
+    ],
+  },
+  {
+    name: "Sunrise Bakery", tag: "Bread & pastries", miles: 0.3, emoji: "🥐",
+    catalog: [
+      { name: "Sourdough loaf", price: 6.0, emoji: "🍞" },
+      { name: "Butter croissant", price: 3.5, emoji: "🥐" },
+      { name: "Blueberry muffin", price: 3.0, emoji: "🧁" },
+      { name: "Baguette", price: 4.25, emoji: "🥖" },
+    ],
+  },
+  {
+    name: "Corner Hardware", tag: "Tools & odds", miles: 0.8, emoji: "🔧",
+    catalog: [
+      { name: "AA batteries (8pk)", price: 8.5, emoji: "🔋" },
+      { name: "Duct tape", price: 6.0, emoji: "🩶" },
+      { name: "Lightbulb LED", price: 4.75, emoji: "💡" },
+    ],
+  },
+  {
+    name: "Green Leaf Market", tag: "Organic", miles: 1.1, emoji: "🌿",
+    catalog: [
+      { name: "Oat milk", price: 5.25, emoji: "🥛" },
+      { name: "Granola jar", price: 8.0, emoji: "🥣" },
+      { name: "Kombucha", price: 4.5, emoji: "🍶" },
+      { name: "Mixed berries", price: 6.5, emoji: "🫐" },
+    ],
+  },
 ];
 
 function NeighborView() {
@@ -155,13 +201,10 @@ function NeighborView() {
   const platformCut = platformShare(deliveryFee);
   const grandTotal = itemsTotal + deliveryFee + platformFee;
 
-  const addItem = (raw: string) => {
-    const trimmed = raw.trim();
-    if (!trimmed) return;
-    const match = trimmed.match(/~?\$?(\d+(\.\d{1,2})?)/);
-    const price = match ? parseFloat(match[1]) : 0;
-    const name = trimmed.replace(/\(?~?\$?\d+(\.\d{1,2})?\)?/, "").trim() || trimmed;
-    setItems((p) => [...p, { id: crypto.randomUUID(), name, price, done: false }]);
+  const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
+
+  const addCatalogItem = (c: CatalogItem) => {
+    setItems((p) => [...p, { id: crypto.randomUUID(), name: c.name, price: c.price, done: false }]);
   };
 
   const startOrder = () => {
@@ -210,8 +253,8 @@ function NeighborView() {
 
         {/* Stores carousel */}
         <Card title="Pick a local store" subtitle="Pre-verified neighborhood shops">
-          <div className="-mx-1 overflow-x-auto">
-            <div className="flex gap-3 px-1 pb-2 snap-x">
+          <div className="-mx-2 overflow-x-auto overflow-y-visible">
+            <div className="flex gap-3 px-2 py-2 snap-x">
               {STORES.map((s) => {
                 const active = activeStore === s.name;
                 return (
@@ -237,8 +280,33 @@ function NeighborView() {
         </Card>
 
         {/* Shopping list */}
-        <Card title="Your shopping list" subtitle={`Ordering from ${activeStore}`}>
-          <ItemInput onAdd={addItem} />
+        <Card title="Your shopping list" subtitle={`Tap items from ${activeStoreData.name} to add — prices are set by the store`}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {activeStoreData.catalog.map((c) => {
+              const count = items.filter((i) => i.name === c.name).length;
+              return (
+                <button
+                  key={c.name}
+                  onClick={() => addCatalogItem(c)}
+                  className="relative text-left rounded-xl border border-border bg-white hover:border-primary hover:bg-[var(--mint-soft)] active:scale-[0.98] transition p-3 min-w-0"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xl shrink-0" aria-hidden>{c.emoji}</span>
+                    <span className="text-sm font-medium truncate">{c.name}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="text-xs tabular-nums text-muted-foreground">${c.price.toFixed(2)}</span>
+                    <span className="text-[11px] font-bold text-[var(--forest)]">+ Add</span>
+                  </div>
+                  {count > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 grid place-items-center text-[10px] font-bold rounded-full bg-primary text-[var(--forest)] border border-white shadow-[var(--shadow-soft)]">
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
           <ul className="mt-4 divide-y divide-border">
             {items.map((it) => (
               <li key={it.id} className="flex items-center gap-3 py-2.5 min-w-0">
@@ -276,7 +344,7 @@ function NeighborView() {
             ))}
             {items.length === 0 && (
               <li className="py-6 text-center text-sm text-muted-foreground">
-                Your basket is empty — add an item above.
+                Your basket is empty — tap an item above to add it.
               </li>
             )}
           </ul>
@@ -343,34 +411,6 @@ function Card({
   );
 }
 
-function ItemInput({ onAdd }: { onAdd: (v: string) => void }) {
-  const [val, setVal] = useState("");
-  const submit = () => {
-    onAdd(val);
-    setVal("");
-  };
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-border bg-[var(--silver)] focus-within:bg-white focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15 transition px-3 py-2 min-w-0">
-      <svg viewBox="0 0 20 20" className="shrink-0 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="9" cy="9" r="6" /><path d="M14 14l4 4" strokeLinecap="round" />
-      </svg>
-      <input
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && submit()}
-        placeholder='e.g. "1L Organic Milk (~$4.50)"'
-        className="flex-1 min-w-0 bg-transparent outline-none text-sm py-1.5"
-      />
-      <button
-        onClick={submit}
-        className="shrink-0 w-8 h-8 rounded-lg bg-primary text-[var(--forest)] font-bold shadow-[var(--shadow-mint)] hover:brightness-105 active:scale-95 transition"
-        aria-label="Add item"
-      >
-        +
-      </button>
-    </div>
-  );
-}
 
 function PriceCard({
   itemsTotal,
@@ -551,8 +591,7 @@ function RideOverlay() {
         <img
           src={pedalIcon.url}
           alt=""
-          className="absolute bottom-2 left-0 w-20 h-20 shadow-[var(--shadow-lift)] animate-pedal-ride"
-          style={{ borderRadius: 4 }}
+          className="absolute bottom-2 left-0 w-20 h-20 animate-pedal-ride"
         />
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--forest)]/30 to-transparent" />
       </div>
