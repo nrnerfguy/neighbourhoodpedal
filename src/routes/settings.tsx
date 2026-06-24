@@ -58,7 +58,9 @@ function SettingsPage() {
         <Section title="Distance units" subtitle="How distances appear across the app.">
           <SegmentedControl
             value={settings.units}
-            onChange={(v) => update("units", v)}
+            onChange={(v) =>
+              updateAndNotify("units", v, `Distance unit set to ${v === "mi" ? "miles" : "kilometers"}`)
+            }
             options={[
               { value: "mi", label: "Miles (mi)" },
               { value: "km", label: "Kilometers (km)" },
@@ -71,13 +73,17 @@ function SettingsPage() {
             label="Order push notifications"
             description="Get status updates while a rider is on the way."
             checked={settings.notifications}
-            onChange={(v) => update("notifications", v)}
+            onChange={(v) =>
+              updateAndNotify("notifications", v, v ? "Push notifications on" : "Push notifications off")
+            }
           />
           <Toggle
             label="Weekly eco impact summary"
             description="See how many car miles your neighborhood avoided."
             checked={settings.ecoSummary}
-            onChange={(v) => update("ecoSummary", v)}
+            onChange={(v) =>
+              updateAndNotify("ecoSummary", v, v ? "Weekly eco summary on" : "Weekly eco summary off")
+            }
           />
         </Section>
 
