@@ -193,25 +193,32 @@ function NeighborView() {
   const [errand, setErrand] = useState("All");
   const [activeStore, setActiveStore] = useState(STORES[0].name);
   const [items, setItems] = useState<Item[]>([
-    { id: "1", name: "1L Organic Milk", price: 4.5, done: false },
-    { id: "2", name: "Sourdough loaf", price: 6.0, done: false },
-    { id: "3", name: "Bananas (bunch)", price: 2.25, done: false },
+    { id: "1", name: "1L Organic Milk", price: 4.5, emoji: "🥛", qty: 1, done: false },
+    { id: "2", name: "Sourdough loaf", price: 6.0, emoji: "🍞", qty: 1, done: false },
+    { id: "3", name: "Bananas (bunch)", price: 2.25, emoji: "🍌", qty: 2, done: false },
   ]);
   const [notes, setNotes] = useState("Leave on the front porch table, please don't ring the bell.");
   const [phase, setPhase] = useState<Phase>("build");
   const [trackStep, setTrackStep] = useState(0);
 
-  const itemsTotal = useMemo(() => items.reduce((s, i) => s + i.price, 0), [items]);
-  const deliveryFee = settings.baseDeliveryFee;
+  const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
+
+  const itemsTotal = useMemo(() => items.reduce((s, i) => s + i.price * i.qty, 0), [items]);
+  const deliveryFee = useMemo(() => computeDeliveryFee(activeStoreData.miles), [activeStoreData.miles]);
   const platformFee = settings.platformServiceFee;
   const rider = riderPayout(deliveryFee);
   const platformCut = platformShare(deliveryFee);
   const grandTotal = itemsTotal + deliveryFee + platformFee;
 
-  const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
-
   const addCatalogItem = (c: CatalogItem) => {
-    setItems((p) => [...p, { id: crypto.randomUUID(), name: c.name, price: c.price, done: false }]);
+    setItems((p) => {
+      const existing = p.find((i) => i.name === c.name);
+      if (existing) return p.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + 1 } : i));
+      return [...p, { id: crypto.randomUUID(), name: c.name, price: c.price, emoji: c.emoji, qty: 1, done: false }];
+    });
+  };
+  const setQty = (id: string, qty: number) => {
+    setItems((p) => (qty <= 0 ? p.filter((i) => i.id !== id) : p.map((i) => (i.id === id ? { ...i, qty } : i))));
   };
 
   const startOrder = () => {
