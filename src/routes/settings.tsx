@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSettings } from "@/lib/settings";
+import { toast } from "sonner";
+import { useSettings, type Settings } from "@/lib/settings";
 import { IconFrame } from "./index";
 
 export const Route = createFileRoute("/settings")({
