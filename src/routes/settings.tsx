@@ -16,6 +16,11 @@ export const Route = createFileRoute("/settings")({
 function SettingsPage() {
   const { settings, update, reset } = useSettings();
 
+  const updateAndNotify = <K extends keyof Settings>(k: K, v: Settings[K], message: string) => {
+    update(k, v);
+    toast.success(message, { duration: 1800 });
+  };
+
   return (
     <div className="min-h-screen bg-[var(--silver)]">
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/75 border-b border-border">
