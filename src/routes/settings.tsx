@@ -17,9 +17,11 @@ function SettingsPage() {
   const { settings, update, reset } = useSettings();
 
   const updateAndNotify = <K extends keyof Settings>(k: K, v: Settings[K], message: string) => {
-    update(k, v);
-    toast.success(message, { duration: 1800 });
+    const ok = update(k, v);
+    if (ok) toast.success(message, { duration: 1800 });
+    else toast.error("Couldn't save — local storage unavailable", { duration: 2400 });
   };
+
 
   return (
     <div className="min-h-screen bg-[var(--silver)]">

@@ -24,10 +24,21 @@ const DEFAULTS: Settings = {
 
 const KEY = "pedal.settings.v1";
 
+function loadSettings(): Settings {
+  if (typeof window === "undefined") return DEFAULTS;
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    if (!raw) return DEFAULTS;
+    return { ...DEFAULTS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULTS;
+  }
+}
+
 type Ctx = {
   settings: Settings;
-  update: <K extends keyof Settings>(k: K, v: Settings[K]) => void;
-  reset: () => void;
+  update: <K extends keyof Settings>(k: K, v: Settings[K]) => boolean;
+  reset: () => boolean;
 };
 
 const SettingsContext = createContext<Ctx | null>(null);
@@ -35,25 +46,23 @@ const SettingsContext = createContext<Ctx | null>(null);
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
 
+  // Hydrate from localStorage after mount (avoid SSR mismatch).
   useEffect(() => {
-    try {
-      const raw = typeof window !== "undefined" ? window.localStorage.getItem(KEY) : null;
-      if (raw) setSettings({ ...DEFAULTS, ...JSON.parse(raw) });
-    } catch {
-      /* ignore */
-    }
+    setSettings(loadSettings());
   }, []);
 
-  useEffect(() => {
+  const persist = (next: Settings): boolean => {
     try {
-      window.localStorage.setItem(KEY, JSON.stringify(settings));
+      window.localStorage.setItem(KEY, JSON.stringify(next));
+      setSettings(next);
+      return true;
     } catch {
-      /* ignore */
+      return false;
     }
-  }, [settings]);
+  };
 
-  const update: Ctx["update"] = (k, v) => setSettings((s) => ({ ...s, [k]: v }));
-  const reset = () => setSettings(DEFAULTS);
+  const update: Ctx["update"] = (k, v) => persist({ ...settings, [k]: v });
+  const reset = () => persist(DEFAULTS);
 
   return <SettingsContext.Provider value={{ settings, update, reset }}>{children}</SettingsContext.Provider>;
 }
@@ -70,11 +79,12 @@ export function formatDistance(miles: number, units: Units): string {
   return `${miles.toFixed(1)} mi`;
 }
 
-/** 95% rider payout / 5% platform split on the delivery fee. */
-export const RIDER_SHARE = 0.95;
+/** 90% rider payout / 10% platform split on the delivery fee. */
+export const RIDER_SHARE = 0.9;
 export function riderPayout(deliveryFee: number) {
   return Math.round(deliveryFee * RIDER_SHARE * 100) / 100;
 }
 export function platformShare(deliveryFee: number) {
   return Math.round((deliveryFee - riderPayout(deliveryFee)) * 100) / 100;
 }
+

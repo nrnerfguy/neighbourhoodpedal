@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Pedal — Neighborhood Bike Delivery" },
-      { name: "description", content: "Hyper-local, zero-emissions store runs. Local riders, 95% payout." },
+      { name: "description", content: "Hyper-local, zero-emissions store runs. Local riders, 90% payout." },
     ],
   }),
   component: PedalApp,
@@ -122,7 +122,7 @@ export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" })
 
 type CatalogItem = { name: string; price: number; emoji: string };
 type Item = { id: string; name: string; price: number; emoji: string; qty: number; done: boolean };
-type Phase = "build" | "loading" | "tracking";
+type Phase = "build" | "review" | "loading" | "tracking";
 
 /** Delivery fee: $2 base + $0.50 per km from store to drop-off. */
 const MILES_TO_KM = 1.60934;
@@ -130,6 +130,14 @@ function computeDeliveryFee(miles: number) {
   const km = miles * MILES_TO_KM;
   return Math.round((2 + 0.5 * km) * 100) / 100;
 }
+
+/** ETA window assuming ~12 mph bike, round-trip + ~6 min shopping. */
+function computeEta(miles: number): { min: number; max: number } {
+  const rideMin = (miles * 2 / 12) * 60;
+  const center = Math.round(rideMin + 6);
+  return { min: Math.max(8, center - 4), max: center + 6 };
+}
+
 
 const ERRAND_TYPES = ["All", "Grocery", "Pharmacy", "Bakery", "Custom Errand"];
 type Store = {
@@ -221,7 +229,9 @@ function NeighborView() {
     setItems((p) => (qty <= 0 ? p.filter((i) => i.id !== id) : p.map((i) => (i.id === id ? { ...i, qty } : i))));
   };
 
-  const startOrder = () => {
+  const openReview = () => setPhase("review");
+  const cancelReview = () => setPhase("build");
+  const placeOrder = () => {
     setPhase("loading");
     setTimeout(() => {
       setPhase("tracking");
@@ -236,6 +246,7 @@ function NeighborView() {
       advance(1);
     }, 2200);
   };
+
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
@@ -378,13 +389,11 @@ function NeighborView() {
                 </span>
                 <button
                   onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
-                  className="shrink-0 text-muted-foreground hover:text-destructive transition"
-                  aria-label="remove"
+                  className="shrink-0 text-[11px] font-semibold text-muted-foreground hover:text-destructive transition"
                 >
-                  <svg viewBox="0 0 20 20" className="w-4 h-4">
-                    <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-                  </svg>
+                  Remove
                 </button>
+
               </li>
             ))}
             {items.length === 0 && (
@@ -422,7 +431,7 @@ function NeighborView() {
               platformCut={platformCut}
               grandTotal={grandTotal}
               phase={phase}
-              onStart={startOrder}
+              onStart={openReview}
               disabled={items.length === 0}
             />
           )}
@@ -431,6 +440,21 @@ function NeighborView() {
       </aside>
 
       {phase === "loading" && <RideOverlay />}
+      {phase === "review" && (
+        <ReviewModal
+          store={activeStoreData}
+          items={items}
+          itemsTotal={itemsTotal}
+          deliveryFee={deliveryFee}
+          platformFee={platformFee}
+          rider={rider}
+          platformCut={platformCut}
+          grandTotal={grandTotal}
+          onCancel={cancelReview}
+          onConfirm={placeOrder}
+        />
+      )}
+
     </div>
   );
 }
@@ -494,6 +518,8 @@ function PriceCard({
   disabled: boolean;
 }) {
   const km = distanceMiles * MILES_TO_KM;
+  const eta = computeEta(distanceMiles);
+
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-lift)] overflow-hidden">
       <div className="bg-gradient-to-br from-[var(--mint-soft)] via-white to-white p-5 sm:p-6 border-b border-border">
@@ -514,11 +540,11 @@ function PriceCard({
               Pedal delivery fee
               <span
                 className="group relative inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-[var(--forest)] text-[10px] font-bold cursor-help"
-                title="95% goes directly to your neighborhood rider"
+                title="90% goes directly to your neighborhood rider"
               >
                 i
                 <span className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--forest)] text-white text-[11px] px-2 py-1 opacity-0 group-hover:opacity-100 transition">
-                  95% goes directly to your rider
+                  90% goes directly to your rider
                 </span>
               </span>
             </span>
@@ -528,16 +554,21 @@ function PriceCard({
         <div className="-mt-1 text-[11px] text-muted-foreground">
           $2.00 base + $0.50 / km · {km.toFixed(2)} km to store
         </div>
+        <Row
+          label="Estimated delivery"
+          value={`${eta.min}–${eta.max} min`}
+        />
 
 
-        {/* 95% split breakdown */}
+
+        {/* 90% split breakdown */}
         <div className="rounded-xl bg-[var(--mint-soft)] border border-primary/30 px-3 py-2.5 text-xs text-[var(--forest)] space-y-1">
           <div className="flex items-center justify-between">
-            <span className="font-semibold">↳ Rider keeps (95%)</span>
+            <span className="font-semibold">↳ Rider keeps (90%)</span>
             <span className="font-bold tabular-nums">${rider.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between opacity-80">
-            <span>↳ Pedal platform (5%)</span>
+            <span>↳ Pedal platform (10%)</span>
             <span className="tabular-nums">${platformCut.toFixed(2)}</span>
           </div>
         </div>
@@ -554,8 +585,9 @@ function PriceCard({
           disabled={disabled || phase === "loading"}
           className="mt-4 w-full rounded-2xl bg-primary text-[var(--forest)] font-bold text-base py-4 shadow-[var(--shadow-mint)] hover:brightness-105 active:scale-[0.99] transition disabled:opacity-50 disabled:cursor-not-allowed border border-[var(--forest)]/15"
         >
-          {phase === "loading" ? "Matching rider…" : "Pedal My Order  →"}
+          {phase === "loading" ? "Matching rider…" : "Review Order  →"}
         </button>
+
         <p className="text-[11px] text-center text-muted-foreground">
           Zero emissions · Funds released on delivery
         </p>
@@ -708,7 +740,7 @@ function RiderView() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Stat label="Active riders online" value="23" hint={`in ${settings.neighborhood}`} tone="white" />
         <Stat label="Available gigs nearby" value={String(gigs.length)} hint="updated live" tone="mint" />
-        <Stat label="Your earnings today" value={`$${earnings.toFixed(2)}`} hint="95% payout rate" tone="forest" />
+        <Stat label="Your earnings today" value={`$${earnings.toFixed(2)}`} hint="90% payout rate" tone="forest" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -821,7 +853,7 @@ function GigCard({ gig, onAccept }: { gig: Gig; onAccept: () => void }) {
           <div className="text-lg sm:text-xl font-extrabold text-[var(--forest)] tabular-nums">
             +${payout.toFixed(2)}
           </div>
-          <div className="text-[9px] text-[var(--forest)]/70">95% of ${gig.fee.toFixed(2)}</div>
+          <div className="text-[9px] text-[var(--forest)]/70">90% of ${gig.fee.toFixed(2)}</div>
         </div>
 
         <div className="min-w-0">
@@ -883,7 +915,7 @@ function Footer() {
           <span className="truncate">© Pedal · Zero-emissions neighborhood delivery</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 justify-center">
-          <span>95% rider payout</span>
+          <span>90% rider payout</span>
           <span aria-hidden>·</span>
           <span>Stripe Connect escrow</span>
         </div>
@@ -891,3 +923,102 @@ function Footer() {
     </footer>
   );
 }
+
+function ReviewModal({
+  store,
+  items,
+  itemsTotal,
+  deliveryFee,
+  platformFee,
+  rider,
+  platformCut,
+  grandTotal,
+  onCancel,
+  onConfirm,
+}: {
+  store: Store;
+  items: Item[];
+  itemsTotal: number;
+  deliveryFee: number;
+  platformFee: number;
+  rider: number;
+  platformCut: number;
+  grandTotal: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { settings } = useSettings();
+  const km = store.miles * MILES_TO_KM;
+  const eta = computeEta(store.miles);
+  return (
+    <div className="fixed inset-0 z-50 bg-[var(--forest)]/40 backdrop-blur-sm grid place-items-end sm:place-items-center p-0 sm:p-6">
+      <div className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl border border-border shadow-[var(--shadow-lift)] overflow-hidden max-h-[92vh] flex flex-col">
+        <div className="bg-gradient-to-br from-[var(--mint-soft)] via-white to-white p-5 sm:p-6 border-b border-border flex items-center gap-3">
+          <IconFrame size="md" />
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-[var(--forest)]">Step 3 of 3 · Review Order</div>
+            <div className="text-lg font-extrabold truncate">{store.name}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {store.tag} · {formatDistance(store.miles, settings.units)} · {eta.min}–{eta.max} min
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto p-5 sm:p-6 space-y-4 text-sm">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Items ({items.reduce((s, i) => s + i.qty, 0)})
+            </div>
+            <ul className="divide-y divide-border rounded-xl border border-border bg-[var(--silver)]/40">
+              {items.map((it) => (
+                <li key={it.id} className="flex items-center gap-3 px-3 py-2 min-w-0">
+                  <span aria-hidden>{it.emoji}</span>
+                  <span className="flex-1 min-w-0 truncate">{it.name}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">× {it.qty}</span>
+                  <span className="shrink-0 w-16 text-right tabular-nums">${(it.price * it.qty).toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-primary/30 bg-[var(--mint-soft)] p-3 text-xs text-[var(--forest)]">
+            <div className="font-semibold">Delivery fee formula</div>
+            <div className="opacity-90 mt-0.5">
+              $2.00 base + $0.50 / km × {km.toFixed(2)} km = <span className="font-bold">${deliveryFee.toFixed(2)}</span>
+            </div>
+            <div className="opacity-90 mt-1">
+              Rider keeps 90% (${rider.toFixed(2)}) · Pedal 10% (${platformCut.toFixed(2)})
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Row label="Items subtotal" value={`$${itemsTotal.toFixed(2)}`} />
+            <Row label="Delivery fee" value={`$${deliveryFee.toFixed(2)}`} />
+            <Row label="Platform service fee" value={`$${platformFee.toFixed(2)}`} />
+            <div className="h-px bg-border my-1" />
+            <Row
+              label={<span className="font-semibold text-foreground">Total</span>}
+              value={<span className="font-extrabold text-base tabular-nums">${grandTotal.toFixed(2)}</span>}
+            />
+          </div>
+        </div>
+
+        <div className="p-4 sm:p-5 border-t border-border bg-white flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-border bg-white py-3 text-sm font-semibold hover:bg-[var(--silver)] transition"
+          >
+            Back to basket
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-primary text-[var(--forest)] font-bold py-3 shadow-[var(--shadow-mint)] hover:brightness-105 active:scale-[0.99] transition border border-[var(--forest)]/15"
+          >
+            Place order · ${grandTotal.toFixed(2)}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
