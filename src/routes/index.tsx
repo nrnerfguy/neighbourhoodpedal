@@ -275,8 +275,9 @@ const STORES: Store[] = [
   },
 ];
 
-function NeighborView() {
+function NeighborView({ userId }: { userId: string }) {
   const { settings } = useSettings();
+  const { orders } = useLiveOrders(userId);
   const [errand, setErrand] = useState("All");
   const [activeStore, setActiveStore] = useState(STORES[0].name);
   const [items, setItems] = useState<Item[]>([
@@ -286,7 +287,7 @@ function NeighborView() {
   ]);
   const [notes, setNotes] = useState("Leave on the front porch table, please don't ring the bell.");
   const [phase, setPhase] = useState<Phase>("build");
-  const [trackStep, setTrackStep] = useState(0);
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
 
@@ -296,6 +297,12 @@ function NeighborView() {
   const rider = riderPayout(deliveryFee);
   const platformCut = platformShare(deliveryFee);
   const grandTotal = itemsTotal + deliveryFee + platformFee;
+
+  const activeOrder = useMemo(
+    () => (activeOrderId ? orders.find((o) => o.id === activeOrderId) ?? null : null),
+    [activeOrderId, orders],
+  );
+  const trackStep = orderToStep(activeOrder?.status);
 
   const addCatalogItem = (c: CatalogItem) => {
     setItems((p) => {
@@ -310,21 +317,51 @@ function NeighborView() {
 
   const openReview = () => setPhase("review");
   const cancelReview = () => setPhase("build");
-  const placeOrder = () => {
+
+  const placeOrder = async () => {
     setPhase("loading");
-    setTimeout(() => {
+    try {
+      const orderItems: OrderItem[] = items.map((i) => ({
+        id: i.id, name: i.name, emoji: i.emoji, price: i.price, qty: i.qty,
+      }));
+      const row = await placeOrderApi({
+        neighbor_id: userId,
+        store_name: activeStoreData.name,
+        store_tag: activeStoreData.tag,
+        store_emoji: activeStoreData.emoji,
+        distance_miles: activeStoreData.miles,
+        items: orderItems,
+        items_total: itemsTotal,
+        delivery_fee: deliveryFee,
+        platform_fee: platformFee,
+        total: grandTotal,
+        notes,
+      });
+      setActiveOrderId(row.id);
       setPhase("tracking");
-      setTrackStep(0);
-      const advance = (n: number) => {
-        if (n >= 4) return;
-        setTimeout(() => {
-          setTrackStep(n);
-          advance(n + 1);
-        }, 1800);
-      };
-      advance(1);
-    }, 2200);
+      toast.success("Order placed — waiting for a rider to accept.");
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't place order");
+      setPhase("review");
+    }
   };
+
+  const newOrder = () => {
+    setActiveOrderId(null);
+    setPhase("build");
+  };
+
+  const cancelActiveOrder = async () => {
+    if (!activeOrder) return;
+    try {
+      await cancelOrder(activeOrder.id);
+      toast.success("Order cancelled");
+      newOrder();
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't cancel");
+    }
+  };
+
 
 
   return (
