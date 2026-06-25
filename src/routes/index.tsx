@@ -877,53 +877,61 @@ function RideOverlay() {
 
 /* ---------------- Rider View ---------------- */
 
-type Gig = {
-  id: string;
-  fee: number; // delivery fee in dollars
-  pickup: string;
-  dropoff: string;
-  miles: number;
-  capacity: string;
-  items: number;
-};
-
-const INITIAL_GIGS: Gig[] = [
-  { id: "g1", fee: 4.0, pickup: "Community Grocer", dropoff: "4th Street Block", miles: 0.7, capacity: "Small Basket · Fits in backpack", items: 5 },
-  { id: "g2", fee: 5.5, pickup: "Maple St. Pharmacy", dropoff: "Linden Ave & 9th", miles: 1.1, capacity: "Tiny · 1 paper bag", items: 2 },
-  { id: "g3", fee: 4.75, pickup: "Sunrise Bakery", dropoff: "Cedar Park, Bench 3", miles: 0.5, capacity: "Small Basket · Fits in backpack", items: 3 },
-  { id: "g4", fee: 6.5, pickup: "Green Leaf Market", dropoff: "Brook Lane #14", miles: 1.4, capacity: "Medium · pannier required", items: 7 },
-  { id: "g5", fee: 3.0, pickup: "Corner Hardware", dropoff: "Elm St. Studios", miles: 0.4, capacity: "Tiny · 1 item", items: 1 },
-];
-
-function RiderView() {
+function RiderView({ userId }: { userId: string }) {
   const { settings } = useSettings();
-  const [gigs, setGigs] = useState<Gig[]>(INITIAL_GIGS);
-  const [active, setActive] = useState<Gig[]>([]);
-  const [completedEarnings, setCompletedEarnings] = useState(14.6);
+  const { orders, loading } = useLiveOrders(userId);
 
-  const accept = (g: Gig) => {
-    setGigs((p) => p.filter((x) => x.id !== g.id));
-    setActive((p) => [g, ...p]);
-  };
-  const complete = (g: Gig) => {
-    setActive((p) => p.filter((x) => x.id !== g.id));
-    setCompletedEarnings((e) => e + riderPayout(g.fee));
-  };
+  const openGigs = useMemo(
+    () => orders.filter((o) => o.status === "open" && o.neighbor_id !== userId),
+    [orders, userId],
+  );
+  const myActive = useMemo(
+    () => orders.filter((o) => o.rider_id === userId && (o.status === "accepted" || o.status === "picked_up")),
+    [orders, userId],
+  );
+  const myCompleted = useMemo(
+    () => orders.filter((o) => o.rider_id === userId && o.status === "delivered"),
+    [orders, userId],
+  );
 
-  const pendingPayout = active.reduce((s, g) => s + riderPayout(g.fee), 0);
+  const completedEarnings = myCompleted.reduce((s, o) => s + riderPayout(o.delivery_fee), 0);
+  const pendingPayout = myActive.reduce((s, o) => s + riderPayout(o.delivery_fee), 0);
   const earnings = completedEarnings + pendingPayout;
+
+  const handleAccept = async (o: OrderRow) => {
+    try {
+      await acceptOrder(o.id, userId);
+      toast.success(`Accepted run to ${o.store_name}`);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't accept");
+    }
+  };
+  const handlePickup = async (o: OrderRow) => {
+    try {
+      await markPickedUp(o.id);
+      toast.success("Marked picked up");
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't update");
+    }
+  };
+  const handleDeliver = async (o: OrderRow) => {
+    try {
+      await markDelivered(o.id);
+      toast.success(`Delivered · +$${riderPayout(o.delivery_fee).toFixed(2)} released`);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't update");
+    }
+  };
 
   return (
     <div className="space-y-6 min-w-0">
-      {/* Stats banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Stat label="Active riders online" value="23" hint={`in ${settings.neighborhood}`} tone="white" />
-        <Stat label="Available gigs nearby" value={String(gigs.length)} hint="updated live" tone="mint" />
+        <Stat label="Open gigs" value={String(openGigs.length)} hint="updated live" tone="white" />
+        <Stat label="Your active runs" value={String(myActive.length)} hint="in progress" tone="mint" />
         <Stat label="Your earnings today" value={`$${earnings.toFixed(2)}`} hint="90% payout rate" tone="forest" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Job feed */}
         <section className="lg:col-span-3 space-y-4 min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
@@ -938,10 +946,15 @@ function RiderView() {
           </div>
 
           <div className="space-y-3">
-            {gigs.map((g) => (
-              <GigCard key={g.id} gig={g} onAccept={() => accept(g)} />
+            {loading && (
+              <div className="text-center py-10 text-sm text-muted-foreground bg-white rounded-2xl border border-border">
+                Loading neighborhood gigs…
+              </div>
+            )}
+            {!loading && openGigs.map((o) => (
+              <GigCard key={o.id} order={o} onAccept={() => handleAccept(o)} />
             ))}
-            {gigs.length === 0 && (
+            {!loading && openGigs.length === 0 && (
               <div className="text-center py-10 text-sm text-muted-foreground bg-white rounded-2xl border border-border">
                 No open gigs right now. New ones pop in as neighbors place orders.
               </div>
@@ -949,38 +962,53 @@ function RiderView() {
           </div>
         </section>
 
-        {/* Active runs sidebar */}
         <aside className="lg:col-span-2 min-w-0">
           <div className="lg:sticky lg:top-24 space-y-4">
             <div className="bg-white border border-border rounded-2xl shadow-[var(--shadow-soft)] overflow-hidden">
               <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3 min-w-0">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">My Active Runs</div>
-                  <div className="text-xs text-muted-foreground">{active.length} in progress</div>
+                  <div className="text-xs text-muted-foreground">{myActive.length} in progress</div>
                 </div>
                 <IconFrame size="md" />
               </div>
               <div className="divide-y divide-border">
-                {active.length === 0 && (
+                {myActive.length === 0 && (
                   <div className="px-5 py-8 text-center text-xs text-muted-foreground">
                     Accept a gig to start a run.
                   </div>
                 )}
-                {active.map((g) => (
-                  <div key={g.id} className="px-5 py-4 min-w-0">
+                {myActive.map((o) => (
+                  <div key={o.id} className="px-5 py-4 min-w-0">
                     <div className="flex items-center justify-between gap-2 min-w-0">
-                      <div className="font-semibold text-sm truncate">{g.pickup}</div>
+                      <div className="font-semibold text-sm truncate">
+                        <span className="mr-1">{o.store_emoji}</span>{o.store_name}
+                      </div>
                       <div className="shrink-0 font-bold text-[var(--forest)] tabular-nums">
-                        +${riderPayout(g.fee).toFixed(2)}
+                        +${riderPayout(o.delivery_fee).toFixed(2)}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5 truncate">→ {g.dropoff}</div>
-                    <button
-                      onClick={() => complete(g)}
-                      className="mt-3 w-full text-xs font-semibold rounded-lg border border-[var(--forest)] text-[var(--forest)] py-2 hover:bg-[var(--mint-soft)] transition"
-                    >
-                      Mark delivered · release escrow
-                    </button>
+                    <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {o.items.length} items · {formatDistance(o.distance_miles, settings.units)}
+                    </div>
+                    {o.notes && (
+                      <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">📝 {o.notes}</div>
+                    )}
+                    {o.status === "accepted" ? (
+                      <button
+                        onClick={() => handlePickup(o)}
+                        className="mt-3 w-full text-xs font-semibold rounded-lg border border-border bg-white py-2 hover:bg-[var(--silver)] transition"
+                      >
+                        Mark picked up
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleDeliver(o)}
+                        className="mt-3 w-full text-xs font-semibold rounded-lg border border-[var(--forest)] text-[var(--forest)] py-2 hover:bg-[var(--mint-soft)] transition"
+                      >
+                        Mark delivered · release escrow
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -992,6 +1020,7 @@ function RiderView() {
     </div>
   );
 }
+
 
 function Stat({
   label,
