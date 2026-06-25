@@ -1,5 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import pedalIcon from "@/assets/pedal-icon.png.asset.json";
 import {
   useSettings,
@@ -7,6 +8,17 @@ import {
   riderPayout,
   platformShare,
 } from "@/lib/settings";
+import { useAuth, signOut } from "@/lib/use-auth";
+import {
+  useLiveOrders,
+  placeOrder as placeOrderApi,
+  acceptOrder,
+  markPickedUp,
+  markDelivered,
+  cancelOrder,
+  type OrderRow,
+  type OrderItem,
+} from "@/lib/orders";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -21,22 +33,73 @@ export const Route = createFileRoute("/")({
 type Mode = "neighbor" | "rider";
 
 function PedalApp() {
+  const { user, loading } = useAuth();
   const [mode, setMode] = useState<Mode>("neighbor");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[var(--silver)] grid place-items-center">
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
+
+  if (!user) return <SignInGate />;
 
   return (
     <div className="min-h-screen bg-[var(--silver)]">
-      <TopNav mode={mode} setMode={setMode} />
+      <TopNav mode={mode} setMode={setMode} authed />
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-        {mode === "neighbor" ? <NeighborView /> : <RiderView />}
+        {mode === "neighbor" ? <NeighborView userId={user.id} /> : <RiderView userId={user.id} />}
       </main>
       <Footer />
     </div>
   );
 }
 
+function SignInGate() {
+  return (
+    <div className="min-h-screen bg-[var(--silver)]">
+      <TopNav mode="neighbor" setMode={() => {}} authed={false} />
+      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24 text-center">
+        <div className="mx-auto mb-6"><IconFrame size="xl" /></div>
+        <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground">
+          Your neighborhood, delivered by bike.
+        </h1>
+        <p className="mt-4 text-base text-muted-foreground max-w-xl mx-auto">
+          Sign in to place a local store run, or hop in as a rider and earn 90% of every delivery fee.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            to="/auth"
+            className="rounded-2xl bg-primary text-[var(--forest)] font-bold px-6 py-3 shadow-[var(--shadow-mint)] hover:brightness-105 active:scale-[0.99] transition border border-[var(--forest)]/15"
+          >
+            Sign in to Pedal
+          </Link>
+          <Link
+            to="/auth"
+            className="rounded-2xl border border-border bg-white font-semibold px-6 py-3 hover:bg-white/80 transition"
+          >
+            Create an account
+          </Link>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+
 /* ---------------- Top Nav ---------------- */
 
-function TopNav({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
+function TopNav({ mode, setMode, authed }: { mode: Mode; setMode: (m: Mode) => void; authed: boolean }) {
+  const navigate = useNavigate();
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out");
+    navigate({ to: "/auth" });
+  };
+
   return (
     <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/75 border-b border-border">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4">
@@ -53,7 +116,7 @@ function TopNav({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
         </div>
 
         <div className="flex justify-center min-w-0">
-          <ModeToggle mode={mode} setMode={setMode} />
+          {authed && <ModeToggle mode={mode} setMode={setMode} />}
         </div>
 
         <div className="flex items-center gap-2 justify-end">
@@ -67,6 +130,21 @@ function TopNav({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
               <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
+          {authed ? (
+            <button
+              onClick={handleSignOut}
+              className="shrink-0 text-xs font-semibold text-muted-foreground hover:text-destructive transition px-2 py-1"
+            >
+              Sign out
+            </button>
+          ) : (
+            <Link
+              to="/auth"
+              className="shrink-0 text-xs font-bold text-[var(--forest)] hover:underline px-2 py-1"
+            >
+              Sign in
+            </Link>
+          )}
           <div className="hidden md:block">
             <EscrowChip />
           </div>
@@ -77,6 +155,7 @@ function TopNav({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
 }
 
 function ModeToggle({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
+
   return (
     <div className="relative inline-flex items-center bg-[var(--silver)] border border-border rounded-full p-1 shadow-inner">
       <div
@@ -130,6 +209,21 @@ function computeDeliveryFee(miles: number) {
   const km = miles * MILES_TO_KM;
   return Math.round((2 + 0.5 * km) * 100) / 100;
 }
+
+/** Map order status → tracker step (0–4). */
+function orderToStep(status: OrderRow["status"] | undefined): number {
+  switch (status) {
+    case "accepted": return 2;
+    case "picked_up": return 3;
+    case "delivered": return 4;
+    case "cancelled": return 0;
+    case "open":
+    default: return 1;
+  }
+}
+
+
+
 
 /** ETA window assuming ~12 mph bike, round-trip + ~6 min shopping. */
 function computeEta(miles: number): { min: number; max: number } {
@@ -196,8 +290,9 @@ const STORES: Store[] = [
   },
 ];
 
-function NeighborView() {
+function NeighborView({ userId }: { userId: string }) {
   const { settings } = useSettings();
+  const { orders } = useLiveOrders(userId);
   const [errand, setErrand] = useState("All");
   const [activeStore, setActiveStore] = useState(STORES[0].name);
   const [items, setItems] = useState<Item[]>([
@@ -207,7 +302,7 @@ function NeighborView() {
   ]);
   const [notes, setNotes] = useState("Leave on the front porch table, please don't ring the bell.");
   const [phase, setPhase] = useState<Phase>("build");
-  const [trackStep, setTrackStep] = useState(0);
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
 
@@ -217,6 +312,12 @@ function NeighborView() {
   const rider = riderPayout(deliveryFee);
   const platformCut = platformShare(deliveryFee);
   const grandTotal = itemsTotal + deliveryFee + platformFee;
+
+  const activeOrder = useMemo(
+    () => (activeOrderId ? orders.find((o) => o.id === activeOrderId) ?? null : null),
+    [activeOrderId, orders],
+  );
+  const trackStep = orderToStep(activeOrder?.status);
 
   const addCatalogItem = (c: CatalogItem) => {
     setItems((p) => {
@@ -231,21 +332,51 @@ function NeighborView() {
 
   const openReview = () => setPhase("review");
   const cancelReview = () => setPhase("build");
-  const placeOrder = () => {
+
+  const placeOrder = async () => {
     setPhase("loading");
-    setTimeout(() => {
+    try {
+      const orderItems: OrderItem[] = items.map((i) => ({
+        id: i.id, name: i.name, emoji: i.emoji, price: i.price, qty: i.qty,
+      }));
+      const row = await placeOrderApi({
+        neighbor_id: userId,
+        store_name: activeStoreData.name,
+        store_tag: activeStoreData.tag,
+        store_emoji: activeStoreData.emoji,
+        distance_miles: activeStoreData.miles,
+        items: orderItems,
+        items_total: itemsTotal,
+        delivery_fee: deliveryFee,
+        platform_fee: platformFee,
+        total: grandTotal,
+        notes,
+      });
+      setActiveOrderId(row.id);
       setPhase("tracking");
-      setTrackStep(0);
-      const advance = (n: number) => {
-        if (n >= 4) return;
-        setTimeout(() => {
-          setTrackStep(n);
-          advance(n + 1);
-        }, 1800);
-      };
-      advance(1);
-    }, 2200);
+      toast.success("Order placed — waiting for a rider to accept.");
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't place order");
+      setPhase("review");
+    }
   };
+
+  const newOrder = () => {
+    setActiveOrderId(null);
+    setPhase("build");
+  };
+
+  const cancelActiveOrder = async () => {
+    if (!activeOrder) return;
+    try {
+      await cancelOrder(activeOrder.id);
+      toast.success("Order cancelled");
+      newOrder();
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't cancel");
+    }
+  };
+
 
 
   return (
@@ -420,7 +551,15 @@ function NeighborView() {
       <aside className="lg:col-span-2 min-w-0">
         <div className="lg:sticky lg:top-24 space-y-4">
           {phase === "tracking" ? (
-            <TrackerCard step={trackStep} total={grandTotal} store={activeStore} />
+            <TrackerCard
+              step={trackStep}
+              order={activeOrder}
+              fallbackTotal={grandTotal}
+              fallbackStore={activeStore}
+              onNew={newOrder}
+              onCancel={cancelActiveOrder}
+            />
+
           ) : (
             <PriceCard
               itemsTotal={itemsTotal}
@@ -605,12 +744,30 @@ function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode 
   );
 }
 
-function TrackerCard({ step, total, store }: { step: number; total: number; store: string }) {
+function TrackerCard({
+  step,
+  order,
+  fallbackTotal,
+  fallbackStore,
+  onNew,
+  onCancel,
+}: {
+  step: number;
+  order: OrderRow | null;
+  fallbackTotal: number;
+  fallbackStore: string;
+  onNew: () => void;
+  onCancel: () => void;
+}) {
   const { settings } = useSettings();
+  const total = order?.total ?? fallbackTotal;
+  const store = order?.store_name ?? fallbackStore;
+  const cancelled = order?.status === "cancelled";
+  const delivered = order?.status === "delivered";
   const steps = [
     "Order authorized in escrow",
     "Matching with a nearby neighborhood rider…",
-    `Rider ${settings.riderName} is en route to ${store} on a bicycle`,
+    `Rider ${order?.rider_id ? "" : settings.riderName + " "}is en route to ${store} on a bicycle`,
     "Items picked up — heading to your drop-off",
     "Delivered · escrow released",
   ];
@@ -618,13 +775,16 @@ function TrackerCard({ step, total, store }: { step: number; total: number; stor
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-lift)] overflow-hidden min-w-0">
       <div className="bg-[var(--forest)] text-white p-5 sm:p-6 flex items-center gap-4 min-w-0">
         <IconFrame size="lg" />
-        <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wider opacity-80">Live order</div>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs uppercase tracking-wider opacity-80">
+            {cancelled ? "Cancelled" : delivered ? "Delivered" : "Live order"}
+          </div>
           <div className="text-lg sm:text-xl font-bold truncate">
             ${total.toFixed(2)} · {store}
           </div>
         </div>
       </div>
+
       <ol className="p-5 sm:p-6 space-y-4">
         {steps.map((s, i) => {
           const done = i < step;
@@ -658,9 +818,28 @@ function TrackerCard({ step, total, store }: { step: number; total: number; stor
           );
         })}
       </ol>
+      <div className="px-5 sm:px-6 pb-5 sm:pb-6 flex flex-col sm:flex-row gap-2">
+        {!delivered && !cancelled && order?.status === "open" && (
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-border bg-white py-2.5 text-xs font-semibold text-muted-foreground hover:text-destructive hover:border-destructive/30 transition"
+          >
+            Cancel order
+          </button>
+        )}
+        {(delivered || cancelled) && (
+          <button
+            onClick={onNew}
+            className="flex-1 rounded-xl bg-primary text-[var(--forest)] font-bold py-2.5 text-sm border border-[var(--forest)]/15 hover:brightness-105 transition"
+          >
+            Place another order
+          </button>
+        )}
+      </div>
     </div>
   );
 }
+
 
 function EscrowCard() {
   return (
@@ -698,53 +877,61 @@ function RideOverlay() {
 
 /* ---------------- Rider View ---------------- */
 
-type Gig = {
-  id: string;
-  fee: number; // delivery fee in dollars
-  pickup: string;
-  dropoff: string;
-  miles: number;
-  capacity: string;
-  items: number;
-};
-
-const INITIAL_GIGS: Gig[] = [
-  { id: "g1", fee: 4.0, pickup: "Community Grocer", dropoff: "4th Street Block", miles: 0.7, capacity: "Small Basket · Fits in backpack", items: 5 },
-  { id: "g2", fee: 5.5, pickup: "Maple St. Pharmacy", dropoff: "Linden Ave & 9th", miles: 1.1, capacity: "Tiny · 1 paper bag", items: 2 },
-  { id: "g3", fee: 4.75, pickup: "Sunrise Bakery", dropoff: "Cedar Park, Bench 3", miles: 0.5, capacity: "Small Basket · Fits in backpack", items: 3 },
-  { id: "g4", fee: 6.5, pickup: "Green Leaf Market", dropoff: "Brook Lane #14", miles: 1.4, capacity: "Medium · pannier required", items: 7 },
-  { id: "g5", fee: 3.0, pickup: "Corner Hardware", dropoff: "Elm St. Studios", miles: 0.4, capacity: "Tiny · 1 item", items: 1 },
-];
-
-function RiderView() {
+function RiderView({ userId }: { userId: string }) {
   const { settings } = useSettings();
-  const [gigs, setGigs] = useState<Gig[]>(INITIAL_GIGS);
-  const [active, setActive] = useState<Gig[]>([]);
-  const [completedEarnings, setCompletedEarnings] = useState(14.6);
+  const { orders, loading } = useLiveOrders(userId);
 
-  const accept = (g: Gig) => {
-    setGigs((p) => p.filter((x) => x.id !== g.id));
-    setActive((p) => [g, ...p]);
-  };
-  const complete = (g: Gig) => {
-    setActive((p) => p.filter((x) => x.id !== g.id));
-    setCompletedEarnings((e) => e + riderPayout(g.fee));
-  };
+  const openGigs = useMemo(
+    () => orders.filter((o) => o.status === "open" && o.neighbor_id !== userId),
+    [orders, userId],
+  );
+  const myActive = useMemo(
+    () => orders.filter((o) => o.rider_id === userId && (o.status === "accepted" || o.status === "picked_up")),
+    [orders, userId],
+  );
+  const myCompleted = useMemo(
+    () => orders.filter((o) => o.rider_id === userId && o.status === "delivered"),
+    [orders, userId],
+  );
 
-  const pendingPayout = active.reduce((s, g) => s + riderPayout(g.fee), 0);
+  const completedEarnings = myCompleted.reduce((s, o) => s + riderPayout(o.delivery_fee), 0);
+  const pendingPayout = myActive.reduce((s, o) => s + riderPayout(o.delivery_fee), 0);
   const earnings = completedEarnings + pendingPayout;
+
+  const handleAccept = async (o: OrderRow) => {
+    try {
+      await acceptOrder(o.id, userId);
+      toast.success(`Accepted run to ${o.store_name}`);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't accept");
+    }
+  };
+  const handlePickup = async (o: OrderRow) => {
+    try {
+      await markPickedUp(o.id);
+      toast.success("Marked picked up");
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't update");
+    }
+  };
+  const handleDeliver = async (o: OrderRow) => {
+    try {
+      await markDelivered(o.id);
+      toast.success(`Delivered · +$${riderPayout(o.delivery_fee).toFixed(2)} released`);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't update");
+    }
+  };
 
   return (
     <div className="space-y-6 min-w-0">
-      {/* Stats banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Stat label="Active riders online" value="23" hint={`in ${settings.neighborhood}`} tone="white" />
-        <Stat label="Available gigs nearby" value={String(gigs.length)} hint="updated live" tone="mint" />
+        <Stat label="Open gigs" value={String(openGigs.length)} hint="updated live" tone="white" />
+        <Stat label="Your active runs" value={String(myActive.length)} hint="in progress" tone="mint" />
         <Stat label="Your earnings today" value={`$${earnings.toFixed(2)}`} hint="90% payout rate" tone="forest" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Job feed */}
         <section className="lg:col-span-3 space-y-4 min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
@@ -759,10 +946,15 @@ function RiderView() {
           </div>
 
           <div className="space-y-3">
-            {gigs.map((g) => (
-              <GigCard key={g.id} gig={g} onAccept={() => accept(g)} />
+            {loading && (
+              <div className="text-center py-10 text-sm text-muted-foreground bg-white rounded-2xl border border-border">
+                Loading neighborhood gigs…
+              </div>
+            )}
+            {!loading && openGigs.map((o) => (
+              <GigCard key={o.id} order={o} onAccept={() => handleAccept(o)} />
             ))}
-            {gigs.length === 0 && (
+            {!loading && openGigs.length === 0 && (
               <div className="text-center py-10 text-sm text-muted-foreground bg-white rounded-2xl border border-border">
                 No open gigs right now. New ones pop in as neighbors place orders.
               </div>
@@ -770,38 +962,53 @@ function RiderView() {
           </div>
         </section>
 
-        {/* Active runs sidebar */}
         <aside className="lg:col-span-2 min-w-0">
           <div className="lg:sticky lg:top-24 space-y-4">
             <div className="bg-white border border-border rounded-2xl shadow-[var(--shadow-soft)] overflow-hidden">
               <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3 min-w-0">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">My Active Runs</div>
-                  <div className="text-xs text-muted-foreground">{active.length} in progress</div>
+                  <div className="text-xs text-muted-foreground">{myActive.length} in progress</div>
                 </div>
                 <IconFrame size="md" />
               </div>
               <div className="divide-y divide-border">
-                {active.length === 0 && (
+                {myActive.length === 0 && (
                   <div className="px-5 py-8 text-center text-xs text-muted-foreground">
                     Accept a gig to start a run.
                   </div>
                 )}
-                {active.map((g) => (
-                  <div key={g.id} className="px-5 py-4 min-w-0">
+                {myActive.map((o) => (
+                  <div key={o.id} className="px-5 py-4 min-w-0">
                     <div className="flex items-center justify-between gap-2 min-w-0">
-                      <div className="font-semibold text-sm truncate">{g.pickup}</div>
+                      <div className="font-semibold text-sm truncate">
+                        <span className="mr-1">{o.store_emoji}</span>{o.store_name}
+                      </div>
                       <div className="shrink-0 font-bold text-[var(--forest)] tabular-nums">
-                        +${riderPayout(g.fee).toFixed(2)}
+                        +${riderPayout(o.delivery_fee).toFixed(2)}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5 truncate">→ {g.dropoff}</div>
-                    <button
-                      onClick={() => complete(g)}
-                      className="mt-3 w-full text-xs font-semibold rounded-lg border border-[var(--forest)] text-[var(--forest)] py-2 hover:bg-[var(--mint-soft)] transition"
-                    >
-                      Mark delivered · release escrow
-                    </button>
+                    <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {o.items.length} items · {formatDistance(o.distance_miles, settings.units)}
+                    </div>
+                    {o.notes && (
+                      <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">📝 {o.notes}</div>
+                    )}
+                    {o.status === "accepted" ? (
+                      <button
+                        onClick={() => handlePickup(o)}
+                        className="mt-3 w-full text-xs font-semibold rounded-lg border border-border bg-white py-2 hover:bg-[var(--silver)] transition"
+                      >
+                        Mark picked up
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleDeliver(o)}
+                        className="mt-3 w-full text-xs font-semibold rounded-lg border border-[var(--forest)] text-[var(--forest)] py-2 hover:bg-[var(--mint-soft)] transition"
+                      >
+                        Mark delivered · release escrow
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -813,6 +1020,7 @@ function RiderView() {
     </div>
   );
 }
+
 
 function Stat({
   label,
@@ -842,9 +1050,10 @@ function Stat({
   );
 }
 
-function GigCard({ gig, onAccept }: { gig: Gig; onAccept: () => void }) {
+function GigCard({ order, onAccept }: { order: OrderRow; onAccept: () => void }) {
   const { settings } = useSettings();
-  const payout = riderPayout(gig.fee);
+  const payout = riderPayout(order.delivery_fee);
+  const itemCount = order.items.reduce((s, i) => s + (i.qty ?? 1), 0);
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-lift)] hover:-translate-y-0.5 transition p-4 sm:p-5 min-w-0">
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 sm:gap-4">
@@ -853,32 +1062,32 @@ function GigCard({ gig, onAccept }: { gig: Gig; onAccept: () => void }) {
           <div className="text-lg sm:text-xl font-extrabold text-[var(--forest)] tabular-nums">
             +${payout.toFixed(2)}
           </div>
-          <div className="text-[9px] text-[var(--forest)]/70">90% of ${gig.fee.toFixed(2)}</div>
+          <div className="text-[9px] text-[var(--forest)]/70">90% of ${order.delivery_fee.toFixed(2)}</div>
         </div>
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs">
             <span className="px-2 py-0.5 rounded-full bg-[var(--silver)] border border-border text-muted-foreground">
-              {formatDistance(gig.miles, settings.units)}
+              {formatDistance(order.distance_miles, settings.units)}
             </span>
             <span className="px-2 py-0.5 rounded-full bg-[var(--silver)] border border-border text-muted-foreground">
-              {gig.items} items
+              {itemCount} items
             </span>
             <span className="px-2 py-0.5 rounded-full bg-white border border-primary/40 text-[var(--forest)] font-medium truncate max-w-full">
-              {gig.capacity}
+              {order.store_tag || "Local pickup"}
             </span>
           </div>
           <div className="mt-2.5 text-sm min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               <Dot color="forest" />
               <span className="font-semibold shrink-0">Pickup:</span>
-              <span className="truncate">{gig.pickup}</span>
+              <span className="truncate">{order.store_emoji} {order.store_name}</span>
             </div>
             <div className="ml-1.5 my-0.5 h-3 w-px bg-border" />
             <div className="flex items-center gap-2 min-w-0">
               <Dot color="mint" />
               <span className="font-semibold shrink-0">Drop-off:</span>
-              <span className="truncate">{gig.dropoff}</span>
+              <span className="truncate">Neighbor in {settings.neighborhood}</span>
             </div>
           </div>
         </div>
@@ -893,6 +1102,7 @@ function GigCard({ gig, onAccept }: { gig: Gig; onAccept: () => void }) {
     </div>
   );
 }
+
 
 function Dot({ color }: { color: "forest" | "mint" }) {
   return (
