@@ -551,7 +551,15 @@ function NeighborView({ userId }: { userId: string }) {
       <aside className="lg:col-span-2 min-w-0">
         <div className="lg:sticky lg:top-24 space-y-4">
           {phase === "tracking" ? (
-            <TrackerCard step={trackStep} total={grandTotal} store={activeStore} />
+            <TrackerCard
+              step={trackStep}
+              order={activeOrder}
+              fallbackTotal={grandTotal}
+              fallbackStore={activeStore}
+              onNew={newOrder}
+              onCancel={cancelActiveOrder}
+            />
+
           ) : (
             <PriceCard
               itemsTotal={itemsTotal}
