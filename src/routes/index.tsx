@@ -518,6 +518,8 @@ function PriceCard({
   disabled: boolean;
 }) {
   const km = distanceMiles * MILES_TO_KM;
+  const eta = computeEta(distanceMiles);
+
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-lift)] overflow-hidden">
       <div className="bg-gradient-to-br from-[var(--mint-soft)] via-white to-white p-5 sm:p-6 border-b border-border">
