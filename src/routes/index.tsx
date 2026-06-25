@@ -818,9 +818,28 @@ function TrackerCard({
           );
         })}
       </ol>
+      <div className="px-5 sm:px-6 pb-5 sm:pb-6 flex flex-col sm:flex-row gap-2">
+        {!delivered && !cancelled && order?.status === "open" && (
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-border bg-white py-2.5 text-xs font-semibold text-muted-foreground hover:text-destructive hover:border-destructive/30 transition"
+          >
+            Cancel order
+          </button>
+        )}
+        {(delivered || cancelled) && (
+          <button
+            onClick={onNew}
+            className="flex-1 rounded-xl bg-primary text-[var(--forest)] font-bold py-2.5 text-sm border border-[var(--forest)]/15 hover:brightness-105 transition"
+          >
+            Place another order
+          </button>
+        )}
+      </div>
     </div>
   );
 }
+
 
 function EscrowCard() {
   return (
