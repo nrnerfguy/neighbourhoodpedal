@@ -116,7 +116,7 @@ function TopNav({ mode, setMode, authed }: { mode: Mode; setMode: (m: Mode) => v
         </div>
 
         <div className="flex justify-center min-w-0">
-          <ModeToggle mode={mode} setMode={setMode} />
+          {authed && <ModeToggle mode={mode} setMode={setMode} />}
         </div>
 
         <div className="flex items-center gap-2 justify-end">
@@ -130,6 +130,21 @@ function TopNav({ mode, setMode, authed }: { mode: Mode; setMode: (m: Mode) => v
               <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
+          {authed ? (
+            <button
+              onClick={handleSignOut}
+              className="shrink-0 text-xs font-semibold text-muted-foreground hover:text-destructive transition px-2 py-1"
+            >
+              Sign out
+            </button>
+          ) : (
+            <Link
+              to="/auth"
+              className="shrink-0 text-xs font-bold text-[var(--forest)] hover:underline px-2 py-1"
+            >
+              Sign in
+            </Link>
+          )}
           <div className="hidden md:block">
             <EscrowChip />
           </div>
@@ -140,6 +155,7 @@ function TopNav({ mode, setMode, authed }: { mode: Mode; setMode: (m: Mode) => v
 }
 
 function ModeToggle({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
+
   return (
     <div className="relative inline-flex items-center bg-[var(--silver)] border border-border rounded-full p-1 shadow-inner">
       <div
