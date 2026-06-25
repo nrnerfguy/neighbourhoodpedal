@@ -440,6 +440,21 @@ function NeighborView() {
       </aside>
 
       {phase === "loading" && <RideOverlay />}
+      {phase === "review" && (
+        <ReviewModal
+          store={activeStoreData}
+          items={items}
+          itemsTotal={itemsTotal}
+          deliveryFee={deliveryFee}
+          platformFee={platformFee}
+          rider={rider}
+          platformCut={platformCut}
+          grandTotal={grandTotal}
+          onCancel={cancelReview}
+          onConfirm={placeOrder}
+        />
+      )}
+
     </div>
   );
 }
