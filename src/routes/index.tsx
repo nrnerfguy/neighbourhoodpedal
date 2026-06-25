@@ -1050,9 +1050,10 @@ function Stat({
   );
 }
 
-function GigCard({ gig, onAccept }: { gig: Gig; onAccept: () => void }) {
+function GigCard({ order, onAccept }: { order: OrderRow; onAccept: () => void }) {
   const { settings } = useSettings();
-  const payout = riderPayout(gig.fee);
+  const payout = riderPayout(order.delivery_fee);
+  const itemCount = order.items.reduce((s, i) => s + (i.qty ?? 1), 0);
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-lift)] hover:-translate-y-0.5 transition p-4 sm:p-5 min-w-0">
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 sm:gap-4">
@@ -1061,32 +1062,32 @@ function GigCard({ gig, onAccept }: { gig: Gig; onAccept: () => void }) {
           <div className="text-lg sm:text-xl font-extrabold text-[var(--forest)] tabular-nums">
             +${payout.toFixed(2)}
           </div>
-          <div className="text-[9px] text-[var(--forest)]/70">90% of ${gig.fee.toFixed(2)}</div>
+          <div className="text-[9px] text-[var(--forest)]/70">90% of ${order.delivery_fee.toFixed(2)}</div>
         </div>
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs">
             <span className="px-2 py-0.5 rounded-full bg-[var(--silver)] border border-border text-muted-foreground">
-              {formatDistance(gig.miles, settings.units)}
+              {formatDistance(order.distance_miles, settings.units)}
             </span>
             <span className="px-2 py-0.5 rounded-full bg-[var(--silver)] border border-border text-muted-foreground">
-              {gig.items} items
+              {itemCount} items
             </span>
             <span className="px-2 py-0.5 rounded-full bg-white border border-primary/40 text-[var(--forest)] font-medium truncate max-w-full">
-              {gig.capacity}
+              {order.store_tag || "Local pickup"}
             </span>
           </div>
           <div className="mt-2.5 text-sm min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               <Dot color="forest" />
               <span className="font-semibold shrink-0">Pickup:</span>
-              <span className="truncate">{gig.pickup}</span>
+              <span className="truncate">{order.store_emoji} {order.store_name}</span>
             </div>
             <div className="ml-1.5 my-0.5 h-3 w-px bg-border" />
             <div className="flex items-center gap-2 min-w-0">
               <Dot color="mint" />
               <span className="font-semibold shrink-0">Drop-off:</span>
-              <span className="truncate">{gig.dropoff}</span>
+              <span className="truncate">Neighbor in {settings.neighborhood}</span>
             </div>
           </div>
         </div>
@@ -1101,6 +1102,7 @@ function GigCard({ gig, onAccept }: { gig: Gig; onAccept: () => void }) {
     </div>
   );
 }
+
 
 function Dot({ color }: { color: "forest" | "mint" }) {
   return (
