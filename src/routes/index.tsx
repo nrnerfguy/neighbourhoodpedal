@@ -386,13 +386,11 @@ function NeighborView() {
                 </span>
                 <button
                   onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
-                  className="shrink-0 text-muted-foreground hover:text-destructive transition"
-                  aria-label="remove"
+                  className="shrink-0 text-[11px] font-semibold text-muted-foreground hover:text-destructive transition"
                 >
-                  <svg viewBox="0 0 20 20" className="w-4 h-4">
-                    <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-                  </svg>
+                  Remove
                 </button>
+
               </li>
             ))}
             {items.length === 0 && (
