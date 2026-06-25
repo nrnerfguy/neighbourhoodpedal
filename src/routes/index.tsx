@@ -229,7 +229,9 @@ function NeighborView() {
     setItems((p) => (qty <= 0 ? p.filter((i) => i.id !== id) : p.map((i) => (i.id === id ? { ...i, qty } : i))));
   };
 
-  const startOrder = () => {
+  const openReview = () => setPhase("review");
+  const cancelReview = () => setPhase("build");
+  const placeOrder = () => {
     setPhase("loading");
     setTimeout(() => {
       setPhase("tracking");
@@ -244,6 +246,7 @@ function NeighborView() {
       advance(1);
     }, 2200);
   };
+
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
