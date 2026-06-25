@@ -540,11 +540,11 @@ function PriceCard({
               Pedal delivery fee
               <span
                 className="group relative inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-[var(--forest)] text-[10px] font-bold cursor-help"
-                title="95% goes directly to your neighborhood rider"
+                title="90% goes directly to your neighborhood rider"
               >
                 i
                 <span className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--forest)] text-white text-[11px] px-2 py-1 opacity-0 group-hover:opacity-100 transition">
-                  95% goes directly to your rider
+                  90% goes directly to your rider
                 </span>
               </span>
             </span>
@@ -561,14 +561,14 @@ function PriceCard({
 
 
 
-        {/* 95% split breakdown */}
+        {/* 90% split breakdown */}
         <div className="rounded-xl bg-[var(--mint-soft)] border border-primary/30 px-3 py-2.5 text-xs text-[var(--forest)] space-y-1">
           <div className="flex items-center justify-between">
-            <span className="font-semibold">↳ Rider keeps (95%)</span>
+            <span className="font-semibold">↳ Rider keeps (90%)</span>
             <span className="font-bold tabular-nums">${rider.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between opacity-80">
-            <span>↳ Pedal platform (5%)</span>
+            <span>↳ Pedal platform (10%)</span>
             <span className="tabular-nums">${platformCut.toFixed(2)}</span>
           </div>
         </div>
@@ -585,8 +585,9 @@ function PriceCard({
           disabled={disabled || phase === "loading"}
           className="mt-4 w-full rounded-2xl bg-primary text-[var(--forest)] font-bold text-base py-4 shadow-[var(--shadow-mint)] hover:brightness-105 active:scale-[0.99] transition disabled:opacity-50 disabled:cursor-not-allowed border border-[var(--forest)]/15"
         >
-          {phase === "loading" ? "Matching rider…" : "Pedal My Order  →"}
+          {phase === "loading" ? "Matching rider…" : "Review Order  →"}
         </button>
+
         <p className="text-[11px] text-center text-muted-foreground">
           Zero emissions · Funds released on delivery
         </p>
