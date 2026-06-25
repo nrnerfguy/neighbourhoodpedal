@@ -1,5 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import pedalIcon from "@/assets/pedal-icon.png.asset.json";
 import {
   useSettings,
@@ -7,6 +8,17 @@ import {
   riderPayout,
   platformShare,
 } from "@/lib/settings";
+import { useAuth, signOut } from "@/lib/use-auth";
+import {
+  useLiveOrders,
+  placeOrder as placeOrderApi,
+  acceptOrder,
+  markPickedUp,
+  markDelivered,
+  cancelOrder,
+  type OrderRow,
+  type OrderItem,
+} from "@/lib/orders";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -21,18 +33,62 @@ export const Route = createFileRoute("/")({
 type Mode = "neighbor" | "rider";
 
 function PedalApp() {
+  const { user, loading } = useAuth();
   const [mode, setMode] = useState<Mode>("neighbor");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[var(--silver)] grid place-items-center">
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
+
+  if (!user) return <SignInGate />;
 
   return (
     <div className="min-h-screen bg-[var(--silver)]">
-      <TopNav mode={mode} setMode={setMode} />
+      <TopNav mode={mode} setMode={setMode} authed />
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-        {mode === "neighbor" ? <NeighborView /> : <RiderView />}
+        {mode === "neighbor" ? <NeighborView userId={user.id} /> : <RiderView userId={user.id} />}
       </main>
       <Footer />
     </div>
   );
 }
+
+function SignInGate() {
+  return (
+    <div className="min-h-screen bg-[var(--silver)]">
+      <TopNav mode="neighbor" setMode={() => {}} authed={false} />
+      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24 text-center">
+        <div className="mx-auto mb-6"><IconFrame size="xl" /></div>
+        <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground">
+          Your neighborhood, delivered by bike.
+        </h1>
+        <p className="mt-4 text-base text-muted-foreground max-w-xl mx-auto">
+          Sign in to place a local store run, or hop in as a rider and earn 90% of every delivery fee.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            to="/auth"
+            className="rounded-2xl bg-primary text-[var(--forest)] font-bold px-6 py-3 shadow-[var(--shadow-mint)] hover:brightness-105 active:scale-[0.99] transition border border-[var(--forest)]/15"
+          >
+            Sign in to Pedal
+          </Link>
+          <Link
+            to="/auth"
+            className="rounded-2xl border border-border bg-white font-semibold px-6 py-3 hover:bg-white/80 transition"
+          >
+            Create an account
+          </Link>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
 
 /* ---------------- Top Nav ---------------- */
 
