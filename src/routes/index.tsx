@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Pedal — Neighborhood Bike Delivery" },
-      { name: "description", content: "Hyper-local, zero-emissions store runs. Local riders, 95% payout." },
+      { name: "description", content: "Hyper-local, zero-emissions store runs. Local riders, 90% payout." },
     ],
   }),
   component: PedalApp,
@@ -740,7 +740,7 @@ function RiderView() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Stat label="Active riders online" value="23" hint={`in ${settings.neighborhood}`} tone="white" />
         <Stat label="Available gigs nearby" value={String(gigs.length)} hint="updated live" tone="mint" />
-        <Stat label="Your earnings today" value={`$${earnings.toFixed(2)}`} hint="95% payout rate" tone="forest" />
+        <Stat label="Your earnings today" value={`$${earnings.toFixed(2)}`} hint="90% payout rate" tone="forest" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -853,7 +853,7 @@ function GigCard({ gig, onAccept }: { gig: Gig; onAccept: () => void }) {
           <div className="text-lg sm:text-xl font-extrabold text-[var(--forest)] tabular-nums">
             +${payout.toFixed(2)}
           </div>
-          <div className="text-[9px] text-[var(--forest)]/70">95% of ${gig.fee.toFixed(2)}</div>
+          <div className="text-[9px] text-[var(--forest)]/70">90% of ${gig.fee.toFixed(2)}</div>
         </div>
 
         <div className="min-w-0">
@@ -915,7 +915,7 @@ function Footer() {
           <span className="truncate">© Pedal · Zero-emissions neighborhood delivery</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 justify-center">
-          <span>95% rider payout</span>
+          <span>90% rider payout</span>
           <span aria-hidden>·</span>
           <span>Stripe Connect escrow</span>
         </div>
