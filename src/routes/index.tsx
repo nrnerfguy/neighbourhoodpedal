@@ -210,6 +210,18 @@ function computeDeliveryFee(miles: number) {
   return Math.round((2 + 0.5 * km) * 100) / 100;
 }
 
+/** Map order status → tracker step (0–4). */
+function orderToStep(status: OrderRow["status"] | undefined): number {
+  switch (status) {
+    case "accepted": return 2;
+    case "picked_up": return 3;
+    case "delivered": return 4;
+    case "cancelled": return 0;
+    case "open":
+    default: return 1;
+  }
+
+
 /** ETA window assuming ~12 mph bike, round-trip + ~6 min shopping. */
 function computeEta(miles: number): { min: number; max: number } {
   const rideMin = (miles * 2 / 12) * 60;
