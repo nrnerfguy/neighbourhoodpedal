@@ -220,6 +220,9 @@ function orderToStep(status: OrderRow["status"] | undefined): number {
     case "open":
     default: return 1;
   }
+}
+
+
 
 
 /** ETA window assuming ~12 mph bike, round-trip + ~6 min shopping. */
