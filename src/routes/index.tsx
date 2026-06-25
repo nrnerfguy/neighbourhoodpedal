@@ -92,7 +92,14 @@ function SignInGate() {
 
 /* ---------------- Top Nav ---------------- */
 
-function TopNav({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
+function TopNav({ mode, setMode, authed }: { mode: Mode; setMode: (m: Mode) => void; authed: boolean }) {
+  const navigate = useNavigate();
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out");
+    navigate({ to: "/auth" });
+  };
+
   return (
     <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/75 border-b border-border">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4">
