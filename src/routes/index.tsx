@@ -552,6 +552,11 @@ function PriceCard({
         <div className="-mt-1 text-[11px] text-muted-foreground">
           $2.00 base + $0.50 / km · {km.toFixed(2)} km to store
         </div>
+        <Row
+          label="Estimated delivery"
+          value={`${eta.min}–${eta.max} min`}
+        />
+
 
 
         {/* 95% split breakdown */}
