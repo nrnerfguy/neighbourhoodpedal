@@ -744,12 +744,30 @@ function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode 
   );
 }
 
-function TrackerCard({ step, total, store }: { step: number; total: number; store: string }) {
+function TrackerCard({
+  step,
+  order,
+  fallbackTotal,
+  fallbackStore,
+  onNew,
+  onCancel,
+}: {
+  step: number;
+  order: OrderRow | null;
+  fallbackTotal: number;
+  fallbackStore: string;
+  onNew: () => void;
+  onCancel: () => void;
+}) {
   const { settings } = useSettings();
+  const total = order?.total ?? fallbackTotal;
+  const store = order?.store_name ?? fallbackStore;
+  const cancelled = order?.status === "cancelled";
+  const delivered = order?.status === "delivered";
   const steps = [
     "Order authorized in escrow",
     "Matching with a nearby neighborhood rider…",
-    `Rider ${settings.riderName} is en route to ${store} on a bicycle`,
+    `Rider ${order?.rider_id ? "" : settings.riderName + " "}is en route to ${store} on a bicycle`,
     "Items picked up — heading to your drop-off",
     "Delivered · escrow released",
   ];
@@ -757,13 +775,16 @@ function TrackerCard({ step, total, store }: { step: number; total: number; stor
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-lift)] overflow-hidden min-w-0">
       <div className="bg-[var(--forest)] text-white p-5 sm:p-6 flex items-center gap-4 min-w-0">
         <IconFrame size="lg" />
-        <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wider opacity-80">Live order</div>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs uppercase tracking-wider opacity-80">
+            {cancelled ? "Cancelled" : delivered ? "Delivered" : "Live order"}
+          </div>
           <div className="text-lg sm:text-xl font-bold truncate">
             ${total.toFixed(2)} · {store}
           </div>
         </div>
       </div>
+
       <ol className="p-5 sm:p-6 space-y-4">
         {steps.map((s, i) => {
           const done = i < step;
