@@ -122,7 +122,7 @@ export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" })
 
 type CatalogItem = { name: string; price: number; emoji: string };
 type Item = { id: string; name: string; price: number; emoji: string; qty: number; done: boolean };
-type Phase = "build" | "loading" | "tracking";
+type Phase = "build" | "review" | "loading" | "tracking";
 
 /** Delivery fee: $2 base + $0.50 per km from store to drop-off. */
 const MILES_TO_KM = 1.60934;
@@ -130,6 +130,14 @@ function computeDeliveryFee(miles: number) {
   const km = miles * MILES_TO_KM;
   return Math.round((2 + 0.5 * km) * 100) / 100;
 }
+
+/** ETA window assuming ~12 mph bike, round-trip + ~6 min shopping. */
+function computeEta(miles: number): { min: number; max: number } {
+  const rideMin = (miles * 2 / 12) * 60;
+  const center = Math.round(rideMin + 6);
+  return { min: Math.max(8, center - 4), max: center + 6 };
+}
+
 
 const ERRAND_TYPES = ["All", "Grocery", "Pharmacy", "Bakery", "Custom Errand"];
 type Store = {
