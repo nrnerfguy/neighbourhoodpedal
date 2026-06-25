@@ -431,7 +431,7 @@ function NeighborView() {
               platformCut={platformCut}
               grandTotal={grandTotal}
               phase={phase}
-              onStart={startOrder}
+              onStart={openReview}
               disabled={items.length === 0}
             />
           )}
