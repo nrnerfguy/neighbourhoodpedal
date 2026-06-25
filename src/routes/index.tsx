@@ -923,3 +923,102 @@ function Footer() {
     </footer>
   );
 }
+
+function ReviewModal({
+  store,
+  items,
+  itemsTotal,
+  deliveryFee,
+  platformFee,
+  rider,
+  platformCut,
+  grandTotal,
+  onCancel,
+  onConfirm,
+}: {
+  store: Store;
+  items: Item[];
+  itemsTotal: number;
+  deliveryFee: number;
+  platformFee: number;
+  rider: number;
+  platformCut: number;
+  grandTotal: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { settings } = useSettings();
+  const km = store.miles * MILES_TO_KM;
+  const eta = computeEta(store.miles);
+  return (
+    <div className="fixed inset-0 z-50 bg-[var(--forest)]/40 backdrop-blur-sm grid place-items-end sm:place-items-center p-0 sm:p-6">
+      <div className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl border border-border shadow-[var(--shadow-lift)] overflow-hidden max-h-[92vh] flex flex-col">
+        <div className="bg-gradient-to-br from-[var(--mint-soft)] via-white to-white p-5 sm:p-6 border-b border-border flex items-center gap-3">
+          <IconFrame size="md" />
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-[var(--forest)]">Step 3 of 3 · Review Order</div>
+            <div className="text-lg font-extrabold truncate">{store.name}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {store.tag} · {formatDistance(store.miles, settings.units)} · {eta.min}–{eta.max} min
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto p-5 sm:p-6 space-y-4 text-sm">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Items ({items.reduce((s, i) => s + i.qty, 0)})
+            </div>
+            <ul className="divide-y divide-border rounded-xl border border-border bg-[var(--silver)]/40">
+              {items.map((it) => (
+                <li key={it.id} className="flex items-center gap-3 px-3 py-2 min-w-0">
+                  <span aria-hidden>{it.emoji}</span>
+                  <span className="flex-1 min-w-0 truncate">{it.name}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">× {it.qty}</span>
+                  <span className="shrink-0 w-16 text-right tabular-nums">${(it.price * it.qty).toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-primary/30 bg-[var(--mint-soft)] p-3 text-xs text-[var(--forest)]">
+            <div className="font-semibold">Delivery fee formula</div>
+            <div className="opacity-90 mt-0.5">
+              $2.00 base + $0.50 / km × {km.toFixed(2)} km = <span className="font-bold">${deliveryFee.toFixed(2)}</span>
+            </div>
+            <div className="opacity-90 mt-1">
+              Rider keeps 90% (${rider.toFixed(2)}) · Pedal 10% (${platformCut.toFixed(2)})
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Row label="Items subtotal" value={`$${itemsTotal.toFixed(2)}`} />
+            <Row label="Delivery fee" value={`$${deliveryFee.toFixed(2)}`} />
+            <Row label="Platform service fee" value={`$${platformFee.toFixed(2)}`} />
+            <div className="h-px bg-border my-1" />
+            <Row
+              label={<span className="font-semibold text-foreground">Total</span>}
+              value={<span className="font-extrabold text-base tabular-nums">${grandTotal.toFixed(2)}</span>}
+            />
+          </div>
+        </div>
+
+        <div className="p-4 sm:p-5 border-t border-border bg-white flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-border bg-white py-3 text-sm font-semibold hover:bg-[var(--silver)] transition"
+          >
+            Back to basket
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-primary text-[var(--forest)] font-bold py-3 shadow-[var(--shadow-mint)] hover:brightness-105 active:scale-[0.99] transition border border-[var(--forest)]/15"
+          >
+            Place order · ${grandTotal.toFixed(2)}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
