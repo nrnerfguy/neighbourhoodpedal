@@ -359,6 +359,14 @@ function NeighborView({ userId }: { userId: string }) {
     setItems((p) => (qty <= 0 ? p.filter((i) => i.id !== id) : p.map((i) => (i.id === id ? { ...i, qty } : i))));
   };
 
+  const selectStore = (storeName: string) => {
+    if (storeName === activeStore) return;
+    setActiveStore(storeName);
+    setItems([]);
+    setNotes("");
+    setPhase("build");
+  };
+
   const openReview = () => setPhase("review");
   const cancelReview = () => setPhase("build");
 
@@ -449,7 +457,7 @@ function NeighborView({ userId }: { userId: string }) {
                 return (
                   <button
                     key={s.name}
-                    onClick={() => setActiveStore(s.name)}
+                    onClick={() => selectStore(s.name)}
                     className={`snap-start shrink-0 w-40 sm:w-44 text-left rounded-2xl border bg-white p-3 transition shadow-[var(--shadow-soft)] hover:-translate-y-0.5 ${
                       active ? "border-primary ring-2 ring-primary/30" : "border-border"
                     }`}
