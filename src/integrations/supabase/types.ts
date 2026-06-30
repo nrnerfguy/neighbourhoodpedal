@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      order_feed_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          order_id: string
+          status: Database["public"]["Enums"]["order_status"]
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          order_id: string
+          status: Database["public"]["Enums"]["order_status"]
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          order_id?: string
+          status?: Database["public"]["Enums"]["order_status"]
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           accepted_at: string | null
