@@ -46,18 +46,53 @@ function toRow(r: Record<string, unknown>): OrderRow {
   } as OrderRow;
 }
 
-/** Live list of all visible-to-me orders (open + mine + assigned to me). */
+/** Live list visible to me: my own orders + orders assigned to me (full detail),
+ *  plus a limited public feed of open orders (no items, notes, or neighbor identity). */
 export function useLiveOrders(userId: string | null | undefined) {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("orders")
-      .select(SELECT_COLS)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (!error && data) setOrders(data.map(toRow));
+    const [ownRes, openRes] = await Promise.all([
+      supabase
+        .from("orders")
+        .select(SELECT_COLS)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase.rpc("get_open_orders"),
+    ]);
+
+    const own: OrderRow[] = !ownRes.error && ownRes.data ? ownRes.data.map(toRow) : [];
+    const ownIds = new Set(own.map((o) => o.id));
+
+    const openFeed: OrderRow[] =
+      !openRes.error && Array.isArray(openRes.data)
+        ? (openRes.data as Array<Record<string, unknown>>)
+            .filter((r) => !ownIds.has(String(r.id)))
+            .map((r) => ({
+              id: String(r.id),
+              neighbor_id: "",
+              rider_id: null,
+              store_name: String(r.store_name ?? ""),
+              store_tag: String(r.store_tag ?? ""),
+              store_emoji: String(r.store_emoji ?? "🛍️"),
+              distance_miles: Number(r.distance_miles ?? 0),
+              items: [],
+              items_total: Number(r.items_total ?? 0),
+              delivery_fee: Number(r.delivery_fee ?? 0),
+              platform_fee: Number(r.platform_fee ?? 0),
+              total: Number(r.total ?? 0),
+              notes: "",
+              status: (r.status as OrderStatus) ?? "open",
+              created_at: String(r.created_at ?? new Date().toISOString()),
+              accepted_at: null,
+              delivered_at: null,
+            }))
+        : [];
+
+    setOrders(
+      [...own, ...openFeed].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)),
+    );
     setLoading(false);
   }, []);
 
@@ -78,8 +113,14 @@ export function useLiveOrders(userId: string | null | undefined) {
         },
       )
       .subscribe();
+    // Realtime only delivers events the user can SELECT from the base table,
+    // and open orders from other neighbors are no longer directly readable —
+    // poll the safe feed periodically so the rider sees new gigs appear.
+    const interval =
+      typeof window !== "undefined" ? window.setInterval(refetch, 8000) : null;
     return () => {
       supabase.removeChannel(channel);
+      if (interval !== null) window.clearInterval(interval);
     };
   }, [userId, refetch]);
 
