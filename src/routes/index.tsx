@@ -912,7 +912,7 @@ function RideOverlay() {
 
 function RiderView({ userId }: { userId: string }) {
   const { settings } = useSettings();
-  const { orders, loading } = useLiveOrders(userId);
+  const { orders, loading, refetch } = useLiveOrders(userId);
 
   const openGigs = useMemo(
     () => orders.filter((o) => o.status === "open" && o.neighbor_id !== userId),
@@ -934,6 +934,7 @@ function RiderView({ userId }: { userId: string }) {
   const handleAccept = async (o: OrderRow) => {
     try {
       await acceptOrder(o.id, userId);
+      await refetch();
       toast.success(`Accepted run to ${o.store_name}`);
     } catch (err) {
       toast.error((err as Error).message ?? "Couldn't accept");
@@ -942,6 +943,7 @@ function RiderView({ userId }: { userId: string }) {
   const handlePickup = async (o: OrderRow) => {
     try {
       await markPickedUp(o.id);
+      await refetch();
       toast.success("Marked picked up");
     } catch (err) {
       toast.error((err as Error).message ?? "Couldn't update");
@@ -950,6 +952,7 @@ function RiderView({ userId }: { userId: string }) {
   const handleDeliver = async (o: OrderRow) => {
     try {
       await markDelivered(o.id);
+      await refetch();
       toast.success(`Delivered · +$${riderPayout(o.delivery_fee).toFixed(2)} released`);
     } catch (err) {
       toast.error((err as Error).message ?? "Couldn't update");
