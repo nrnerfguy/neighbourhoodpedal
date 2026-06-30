@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      open_order_gigs: {
+        Row: {
+          created_at: string
+          delivery_fee: number
+          distance_miles: number
+          items_total: number
+          order_id: string
+          platform_fee: number
+          status: Database["public"]["Enums"]["order_status"]
+          store_emoji: string
+          store_name: string
+          store_tag: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at: string
+          delivery_fee?: number
+          distance_miles?: number
+          items_total?: number
+          order_id: string
+          platform_fee?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          store_emoji?: string
+          store_name: string
+          store_tag?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_fee?: number
+          distance_miles?: number
+          items_total?: number
+          order_id?: string
+          platform_fee?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          store_emoji?: string
+          store_name?: string
+          store_tag?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_feed_events: {
         Row: {
           created_at: string
