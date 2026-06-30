@@ -82,7 +82,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_open_orders: {
+        Args: never
+        Returns: {
+          created_at: string
+          delivery_fee: number
+          distance_miles: number
+          id: string
+          items_total: number
+          platform_fee: number
+          status: Database["public"]["Enums"]["order_status"]
+          store_emoji: string
+          store_name: string
+          store_tag: string
+          total: number
+        }[]
+      }
     }
     Enums: {
       order_status:
