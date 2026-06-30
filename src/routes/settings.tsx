@@ -24,7 +24,7 @@ function SettingsPage() {
 
 
   return (
-    <div className="min-h-screen bg-[var(--silver)]">
+    <div className="min-h-dvh bg-[var(--silver)] flex flex-col">
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/75 border-b border-border">
         <div className="mx-auto max-w-2xl px-4 sm:px-6 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-3">
           <Link
@@ -49,7 +49,7 @@ function SettingsPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 sm:px-6 py-6 sm:py-10 space-y-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Preferences</h1>
           <p className="text-sm text-muted-foreground mt-1">
