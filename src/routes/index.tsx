@@ -1073,7 +1073,7 @@ function Stat({
 function GigCard({ order, onAccept }: { order: OrderRow; onAccept: () => void }) {
   const { settings } = useSettings();
   const payout = riderPayout(order.delivery_fee);
-  const itemCount = order.items.reduce((s, i) => s + (i.qty ?? 1), 0);
+  const itemCount = order.item_count ?? order.items.reduce((s, i) => s + (i.qty ?? 1), 0);
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-lift)] hover:-translate-y-0.5 transition p-4 sm:p-5 min-w-0">
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 sm:gap-4">
