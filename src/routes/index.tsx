@@ -314,6 +314,10 @@ function NeighborView({ userId }: { userId: string }) {
     () => (activeOrderId ? orders.find((o) => o.id === activeOrderId) ?? null : null),
     [activeOrderId, orders],
   );
+  const latestOngoingOrder = useMemo(
+    () => orders.find((o) => o.neighbor_id === userId && o.status !== "delivered" && o.status !== "cancelled") ?? null,
+    [orders, userId],
+  );
   const trackStep = orderToStep(activeOrder?.status);
 
   useEffect(() => {
@@ -334,6 +338,15 @@ function NeighborView({ userId }: { userId: string }) {
       if (typeof window !== "undefined") window.localStorage.removeItem(`${ACTIVE_ORDER_KEY}.${userId}`);
     }
   }, [activeOrderId, activeOrder, orders.length, userId]);
+
+  useEffect(() => {
+    if (activeOrderId || !latestOngoingOrder) return;
+    setActiveOrderId(latestOngoingOrder.id);
+    setPhase("tracking");
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(`${ACTIVE_ORDER_KEY}.${userId}`, latestOngoingOrder.id);
+    }
+  }, [activeOrderId, latestOngoingOrder, userId]);
 
   const addCatalogItem = (c: CatalogItem) => {
     setItems((p) => {
@@ -510,7 +523,7 @@ function NeighborView({ userId }: { userId: string }) {
           </div>
           <ul className="mt-4 divide-y divide-border">
             {items.map((it) => (
-              <li key={it.id} className="flex items-center gap-3 py-2.5 min-w-0">
+              <li key={it.id} className="grid grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 gap-y-2 py-2.5 min-w-0">
                 <button
                   onClick={() =>
                     setItems((p) => p.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)))
@@ -530,17 +543,17 @@ function NeighborView({ userId }: { userId: string }) {
                   <span className="mr-1.5" aria-hidden>{it.emoji}</span>
                   {it.name}
                 </span>
-                <div className="shrink-0 flex items-center gap-1 rounded-full border border-border bg-white p-0.5">
+                <div className="col-start-2 sm:col-start-auto shrink-0 flex w-max items-center gap-1 rounded-full border border-border bg-white p-0.5">
                   <StepBtn label="−" onClick={() => setQty(it.id, it.qty - 1)} />
                   <span className="min-w-6 text-center text-xs font-bold tabular-nums">{it.qty}</span>
                   <StepBtn label="+" onClick={() => setQty(it.id, it.qty + 1)} />
                 </div>
-                <span className="shrink-0 w-16 text-right text-sm font-medium tabular-nums text-muted-foreground">
+                <span className="col-start-2 sm:col-start-auto shrink-0 w-max sm:w-16 text-left sm:text-right text-sm font-medium tabular-nums text-muted-foreground">
                   ~${(it.price * it.qty).toFixed(2)}
                 </span>
                 <button
                   onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
-                  className="shrink-0 text-[11px] font-semibold text-muted-foreground hover:text-destructive transition"
+                  className="col-start-2 sm:col-start-auto shrink-0 w-max text-[11px] font-semibold text-muted-foreground hover:text-destructive transition"
                 >
                   Remove
                 </button>
