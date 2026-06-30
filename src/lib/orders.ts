@@ -24,6 +24,7 @@ export type OrderRow = {
   delivery_fee: number;
   platform_fee: number;
   total: number;
+  item_count?: number;
   notes: string;
   status: OrderStatus;
   created_at: string;
@@ -35,7 +36,7 @@ const SELECT_COLS =
   "id,neighbor_id,rider_id,store_name,store_tag,store_emoji,distance_miles,items,items_total,delivery_fee,platform_fee,total,notes,status,created_at,accepted_at,delivered_at";
 
 const OPEN_GIG_COLS =
-  "order_id,store_name,store_tag,store_emoji,distance_miles,items_total,delivery_fee,platform_fee,total,status,created_at";
+  "order_id,store_name,store_tag,store_emoji,distance_miles,items_total,item_count,delivery_fee,platform_fee,total,status,created_at";
 
 function toRow(r: Record<string, unknown>): OrderRow {
   return {
@@ -90,6 +91,7 @@ export function useLiveOrders(userId: string | null | undefined) {
               delivery_fee: Number(r.delivery_fee ?? 0),
               platform_fee: Number(r.platform_fee ?? 0),
               total: Number(r.total ?? 0),
+              item_count: Number(r.item_count ?? 0),
               notes: "",
               status: (r.status as OrderStatus) ?? "open",
               created_at: String(r.created_at ?? new Date().toISOString()),
