@@ -923,7 +923,7 @@ function RiderView({ userId }: { userId: string }) {
   const { orders, loading, refetch } = useLiveOrders(userId);
 
   const openGigs = useMemo(
-    () => orders.filter((o) => o.status === "open" && o.neighbor_id !== userId),
+    () => orders.filter((o) => o.status === "open"),
     [orders, userId],
   );
   const myActive = useMemo(
@@ -996,7 +996,12 @@ function RiderView({ userId }: { userId: string }) {
               </div>
             )}
             {!loading && openGigs.map((o) => (
-              <GigCard key={o.id} order={o} onAccept={() => handleAccept(o)} />
+              <GigCard
+                key={o.id}
+                order={o}
+                isOwnOrder={o.neighbor_id === userId}
+                onAccept={() => handleAccept(o)}
+              />
             ))}
             {!loading && openGigs.length === 0 && (
               <div className="text-center py-10 text-sm text-muted-foreground bg-white rounded-2xl border border-border">
@@ -1094,7 +1099,15 @@ function Stat({
   );
 }
 
-function GigCard({ order, onAccept }: { order: OrderRow; onAccept: () => void }) {
+function GigCard({
+  order,
+  isOwnOrder = false,
+  onAccept,
+}: {
+  order: OrderRow;
+  isOwnOrder?: boolean;
+  onAccept: () => void;
+}) {
   const { settings } = useSettings();
   const payout = riderPayout(order.delivery_fee);
   const itemCount = order.item_count ?? order.items.reduce((s, i) => s + (i.qty ?? 1), 0);
@@ -1139,9 +1152,10 @@ function GigCard({ order, onAccept }: { order: OrderRow; onAccept: () => void })
 
       <button
         onClick={onAccept}
+        disabled={isOwnOrder}
         className="mt-4 w-full rounded-xl bg-primary text-[var(--forest)] font-bold text-sm px-4 py-3 shadow-[var(--shadow-mint)] border border-[var(--forest)]/15 hover:brightness-105 active:scale-[0.99] transition"
       >
-        Accept &amp; Lock Gig
+        {isOwnOrder ? "Visible to nearby riders" : "Accept & Lock Gig"}
       </button>
     </div>
   );
