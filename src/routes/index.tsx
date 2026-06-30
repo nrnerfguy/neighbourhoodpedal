@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import pedalIcon from "@/assets/pedal-icon.png.asset.json";
 import {
@@ -47,9 +47,9 @@ function PedalApp() {
   if (!user) return <SignInGate />;
 
   return (
-    <div className="min-h-screen bg-[var(--silver)]">
+    <div className="min-h-dvh bg-[var(--silver)] flex flex-col">
       <TopNav mode={mode} setMode={setMode} authed />
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
         {mode === "neighbor" ? <NeighborView userId={user.id} /> : <RiderView userId={user.id} />}
       </main>
       <Footer />
@@ -59,9 +59,9 @@ function PedalApp() {
 
 function SignInGate() {
   return (
-    <div className="min-h-screen bg-[var(--silver)]">
+    <div className="min-h-dvh bg-[var(--silver)] flex flex-col">
       <TopNav mode="neighbor" setMode={() => {}} authed={false} />
-      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24 text-center">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 sm:px-6 py-16 sm:py-24 text-center">
         <div className="mx-auto mb-6"><IconFrame size="xl" /></div>
         <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground">
           Your neighborhood, delivered by bike.
@@ -202,6 +202,7 @@ export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" })
 type CatalogItem = { name: string; price: number; emoji: string };
 type Item = { id: string; name: string; price: number; emoji: string; qty: number; done: boolean };
 type Phase = "build" | "review" | "loading" | "tracking";
+const ACTIVE_ORDER_KEY = "pedal.activeOrderId.v1";
 
 /** Delivery fee: $2 base + $0.50 per km from store to drop-off. */
 const MILES_TO_KM = 1.60934;
@@ -295,12 +296,8 @@ function NeighborView({ userId }: { userId: string }) {
   const { orders } = useLiveOrders(userId);
   const [errand, setErrand] = useState("All");
   const [activeStore, setActiveStore] = useState(STORES[0].name);
-  const [items, setItems] = useState<Item[]>([
-    { id: "1", name: "1L Organic Milk", price: 4.5, emoji: "🥛", qty: 1, done: false },
-    { id: "2", name: "Sourdough loaf", price: 6.0, emoji: "🍞", qty: 1, done: false },
-    { id: "3", name: "Bananas (bunch)", price: 2.25, emoji: "🍌", qty: 2, done: false },
-  ]);
-  const [notes, setNotes] = useState("Leave on the front porch table, please don't ring the bell.");
+  const [items, setItems] = useState<Item[]>([]);
+  const [notes, setNotes] = useState("");
   const [phase, setPhase] = useState<Phase>("build");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
@@ -318,6 +315,25 @@ function NeighborView({ userId }: { userId: string }) {
     [activeOrderId, orders],
   );
   const trackStep = orderToStep(activeOrder?.status);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(`${ACTIVE_ORDER_KEY}.${userId}`);
+    if (saved) setActiveOrderId(saved);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!activeOrderId) return;
+    if (activeOrder) {
+      setPhase("tracking");
+      return;
+    }
+    if (orders.length > 0) {
+      setActiveOrderId(null);
+      setPhase("build");
+      if (typeof window !== "undefined") window.localStorage.removeItem(`${ACTIVE_ORDER_KEY}.${userId}`);
+    }
+  }, [activeOrderId, activeOrder, orders.length, userId]);
 
   const addCatalogItem = (c: CatalogItem) => {
     setItems((p) => {
@@ -353,6 +369,7 @@ function NeighborView({ userId }: { userId: string }) {
         notes,
       });
       setActiveOrderId(row.id);
+      if (typeof window !== "undefined") window.localStorage.setItem(`${ACTIVE_ORDER_KEY}.${userId}`, row.id);
       setPhase("tracking");
       toast.success("Order placed — waiting for a rider to accept.");
     } catch (err) {
@@ -363,6 +380,9 @@ function NeighborView({ userId }: { userId: string }) {
 
   const newOrder = () => {
     setActiveOrderId(null);
+    if (typeof window !== "undefined") window.localStorage.removeItem(`${ACTIVE_ORDER_KEY}.${userId}`);
+    setItems([]);
+    setNotes("");
     setPhase("build");
   };
 
