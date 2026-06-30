@@ -24,6 +24,7 @@ export type OrderRow = {
   delivery_fee: number;
   platform_fee: number;
   total: number;
+  item_count?: number;
   notes: string;
   status: OrderStatus;
   created_at: string;
@@ -33,6 +34,9 @@ export type OrderRow = {
 
 const SELECT_COLS =
   "id,neighbor_id,rider_id,store_name,store_tag,store_emoji,distance_miles,items,items_total,delivery_fee,platform_fee,total,notes,status,created_at,accepted_at,delivered_at";
+
+const OPEN_GIG_COLS =
+  "order_id,store_name,store_tag,store_emoji,distance_miles,items_total,item_count,delivery_fee,platform_fee,total,status,created_at";
 
 function toRow(r: Record<string, unknown>): OrderRow {
   return {
@@ -47,7 +51,7 @@ function toRow(r: Record<string, unknown>): OrderRow {
 }
 
 /** Live list visible to me: my own orders + orders assigned to me (full detail),
- *  plus a limited public feed of open orders (no items, notes, or neighbor identity). */
+ *  plus a limited live feed of open gigs (no items, notes, or neighbor identity). */
 export function useLiveOrders(userId: string | null | undefined) {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +63,12 @@ export function useLiveOrders(userId: string | null | undefined) {
         .select(SELECT_COLS)
         .order("created_at", { ascending: false })
         .limit(50),
-      supabase.rpc("get_open_orders"),
+      supabase
+        .from("open_order_gigs")
+        .select(OPEN_GIG_COLS)
+        .eq("status", "open")
+        .order("created_at", { ascending: false })
+        .limit(100),
     ]);
 
     const own: OrderRow[] = !ownRes.error && ownRes.data ? ownRes.data.map(toRow) : [];
@@ -68,9 +77,9 @@ export function useLiveOrders(userId: string | null | undefined) {
     const openFeed: OrderRow[] =
       !openRes.error && Array.isArray(openRes.data)
         ? (openRes.data as Array<Record<string, unknown>>)
-            .filter((r) => !ownIds.has(String(r.id)))
+            .filter((r) => !ownIds.has(String(r.order_id)))
             .map((r) => ({
-              id: String(r.id),
+              id: String(r.order_id),
               neighbor_id: "",
               rider_id: null,
               store_name: String(r.store_name ?? ""),
@@ -82,6 +91,7 @@ export function useLiveOrders(userId: string | null | undefined) {
               delivery_fee: Number(r.delivery_fee ?? 0),
               platform_fee: Number(r.platform_fee ?? 0),
               total: Number(r.total ?? 0),
+              item_count: Number(r.item_count ?? 0),
               notes: "",
               status: (r.status as OrderStatus) ?? "open",
               created_at: String(r.created_at ?? new Date().toISOString()),
@@ -103,8 +113,8 @@ export function useLiveOrders(userId: string | null | undefined) {
       return;
     }
     refetch();
-    const channel = supabase
-      .channel("orders-live")
+    const ordersChannel = supabase
+      .channel(`orders-live-${userId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
@@ -113,13 +123,22 @@ export function useLiveOrders(userId: string | null | undefined) {
         },
       )
       .subscribe();
-    // Realtime only delivers events the user can SELECT from the base table,
-    // and open orders from other neighbors are no longer directly readable —
-    // poll the safe feed periodically so the rider sees new gigs appear.
+    const gigChannel = supabase
+      .channel(`open-gigs-live-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "open_order_gigs" },
+        () => {
+          refetch();
+        },
+      )
+      .subscribe();
+    // Poll as a small safety net if a device temporarily drops realtime.
     const interval =
-      typeof window !== "undefined" ? window.setInterval(refetch, 8000) : null;
+      typeof window !== "undefined" ? window.setInterval(refetch, 15000) : null;
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(gigChannel);
       if (interval !== null) window.clearInterval(interval);
     };
   }, [userId, refetch]);

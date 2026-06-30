@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import pedalIcon from "@/assets/pedal-icon.png.asset.json";
 import {
@@ -47,9 +47,9 @@ function PedalApp() {
   if (!user) return <SignInGate />;
 
   return (
-    <div className="min-h-screen bg-[var(--silver)]">
+    <div className="min-h-dvh bg-[var(--silver)] flex flex-col">
       <TopNav mode={mode} setMode={setMode} authed />
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
         {mode === "neighbor" ? <NeighborView userId={user.id} /> : <RiderView userId={user.id} />}
       </main>
       <Footer />
@@ -59,9 +59,9 @@ function PedalApp() {
 
 function SignInGate() {
   return (
-    <div className="min-h-screen bg-[var(--silver)]">
+    <div className="min-h-dvh bg-[var(--silver)] flex flex-col">
       <TopNav mode="neighbor" setMode={() => {}} authed={false} />
-      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24 text-center">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 sm:px-6 py-16 sm:py-24 text-center">
         <div className="mx-auto mb-6"><IconFrame size="xl" /></div>
         <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground">
           Your neighborhood, delivered by bike.
@@ -202,6 +202,7 @@ export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" })
 type CatalogItem = { name: string; price: number; emoji: string };
 type Item = { id: string; name: string; price: number; emoji: string; qty: number; done: boolean };
 type Phase = "build" | "review" | "loading" | "tracking";
+const ACTIVE_ORDER_KEY = "pedal.activeOrderId.v1";
 
 /** Delivery fee: $2 base + $0.50 per km from store to drop-off. */
 const MILES_TO_KM = 1.60934;
@@ -295,12 +296,8 @@ function NeighborView({ userId }: { userId: string }) {
   const { orders } = useLiveOrders(userId);
   const [errand, setErrand] = useState("All");
   const [activeStore, setActiveStore] = useState(STORES[0].name);
-  const [items, setItems] = useState<Item[]>([
-    { id: "1", name: "1L Organic Milk", price: 4.5, emoji: "🥛", qty: 1, done: false },
-    { id: "2", name: "Sourdough loaf", price: 6.0, emoji: "🍞", qty: 1, done: false },
-    { id: "3", name: "Bananas (bunch)", price: 2.25, emoji: "🍌", qty: 2, done: false },
-  ]);
-  const [notes, setNotes] = useState("Leave on the front porch table, please don't ring the bell.");
+  const [items, setItems] = useState<Item[]>([]);
+  const [notes, setNotes] = useState("");
   const [phase, setPhase] = useState<Phase>("build");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
@@ -317,7 +314,39 @@ function NeighborView({ userId }: { userId: string }) {
     () => (activeOrderId ? orders.find((o) => o.id === activeOrderId) ?? null : null),
     [activeOrderId, orders],
   );
+  const latestOngoingOrder = useMemo(
+    () => orders.find((o) => o.neighbor_id === userId && o.status !== "delivered" && o.status !== "cancelled") ?? null,
+    [orders, userId],
+  );
   const trackStep = orderToStep(activeOrder?.status);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(`${ACTIVE_ORDER_KEY}.${userId}`);
+    if (saved) setActiveOrderId(saved);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!activeOrderId) return;
+    if (activeOrder) {
+      setPhase("tracking");
+      return;
+    }
+    if (orders.length > 0) {
+      setActiveOrderId(null);
+      setPhase("build");
+      if (typeof window !== "undefined") window.localStorage.removeItem(`${ACTIVE_ORDER_KEY}.${userId}`);
+    }
+  }, [activeOrderId, activeOrder, orders.length, userId]);
+
+  useEffect(() => {
+    if (activeOrderId || !latestOngoingOrder) return;
+    setActiveOrderId(latestOngoingOrder.id);
+    setPhase("tracking");
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(`${ACTIVE_ORDER_KEY}.${userId}`, latestOngoingOrder.id);
+    }
+  }, [activeOrderId, latestOngoingOrder, userId]);
 
   const addCatalogItem = (c: CatalogItem) => {
     setItems((p) => {
@@ -328,6 +357,14 @@ function NeighborView({ userId }: { userId: string }) {
   };
   const setQty = (id: string, qty: number) => {
     setItems((p) => (qty <= 0 ? p.filter((i) => i.id !== id) : p.map((i) => (i.id === id ? { ...i, qty } : i))));
+  };
+
+  const selectStore = (storeName: string) => {
+    if (storeName === activeStore) return;
+    setActiveStore(storeName);
+    setItems([]);
+    setNotes("");
+    setPhase("build");
   };
 
   const openReview = () => setPhase("review");
@@ -353,6 +390,7 @@ function NeighborView({ userId }: { userId: string }) {
         notes,
       });
       setActiveOrderId(row.id);
+      if (typeof window !== "undefined") window.localStorage.setItem(`${ACTIVE_ORDER_KEY}.${userId}`, row.id);
       setPhase("tracking");
       toast.success("Order placed — waiting for a rider to accept.");
     } catch (err) {
@@ -363,6 +401,9 @@ function NeighborView({ userId }: { userId: string }) {
 
   const newOrder = () => {
     setActiveOrderId(null);
+    if (typeof window !== "undefined") window.localStorage.removeItem(`${ACTIVE_ORDER_KEY}.${userId}`);
+    setItems([]);
+    setNotes("");
     setPhase("build");
   };
 
@@ -416,7 +457,7 @@ function NeighborView({ userId }: { userId: string }) {
                 return (
                   <button
                     key={s.name}
-                    onClick={() => setActiveStore(s.name)}
+                    onClick={() => selectStore(s.name)}
                     className={`snap-start shrink-0 w-40 sm:w-44 text-left rounded-2xl border bg-white p-3 transition shadow-[var(--shadow-soft)] hover:-translate-y-0.5 ${
                       active ? "border-primary ring-2 ring-primary/30" : "border-border"
                     }`}
@@ -490,7 +531,7 @@ function NeighborView({ userId }: { userId: string }) {
           </div>
           <ul className="mt-4 divide-y divide-border">
             {items.map((it) => (
-              <li key={it.id} className="flex items-center gap-3 py-2.5 min-w-0">
+              <li key={it.id} className="grid grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 gap-y-2 py-2.5 min-w-0">
                 <button
                   onClick={() =>
                     setItems((p) => p.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)))
@@ -510,17 +551,17 @@ function NeighborView({ userId }: { userId: string }) {
                   <span className="mr-1.5" aria-hidden>{it.emoji}</span>
                   {it.name}
                 </span>
-                <div className="shrink-0 flex items-center gap-1 rounded-full border border-border bg-white p-0.5">
+                <div className="col-start-2 sm:col-start-auto shrink-0 flex w-max items-center gap-1 rounded-full border border-border bg-white p-0.5">
                   <StepBtn label="−" onClick={() => setQty(it.id, it.qty - 1)} />
                   <span className="min-w-6 text-center text-xs font-bold tabular-nums">{it.qty}</span>
                   <StepBtn label="+" onClick={() => setQty(it.id, it.qty + 1)} />
                 </div>
-                <span className="shrink-0 w-16 text-right text-sm font-medium tabular-nums text-muted-foreground">
+                <span className="col-start-2 sm:col-start-auto shrink-0 w-max sm:w-16 text-left sm:text-right text-sm font-medium tabular-nums text-muted-foreground">
                   ~${(it.price * it.qty).toFixed(2)}
                 </span>
                 <button
                   onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
-                  className="shrink-0 text-[11px] font-semibold text-muted-foreground hover:text-destructive transition"
+                  className="col-start-2 sm:col-start-auto shrink-0 w-max text-[11px] font-semibold text-muted-foreground hover:text-destructive transition"
                 >
                   Remove
                 </button>
@@ -879,10 +920,10 @@ function RideOverlay() {
 
 function RiderView({ userId }: { userId: string }) {
   const { settings } = useSettings();
-  const { orders, loading } = useLiveOrders(userId);
+  const { orders, loading, refetch } = useLiveOrders(userId);
 
   const openGigs = useMemo(
-    () => orders.filter((o) => o.status === "open" && o.neighbor_id !== userId),
+    () => orders.filter((o) => o.status === "open"),
     [orders, userId],
   );
   const myActive = useMemo(
@@ -901,6 +942,7 @@ function RiderView({ userId }: { userId: string }) {
   const handleAccept = async (o: OrderRow) => {
     try {
       await acceptOrder(o.id, userId);
+      await refetch();
       toast.success(`Accepted run to ${o.store_name}`);
     } catch (err) {
       toast.error((err as Error).message ?? "Couldn't accept");
@@ -909,6 +951,7 @@ function RiderView({ userId }: { userId: string }) {
   const handlePickup = async (o: OrderRow) => {
     try {
       await markPickedUp(o.id);
+      await refetch();
       toast.success("Marked picked up");
     } catch (err) {
       toast.error((err as Error).message ?? "Couldn't update");
@@ -917,6 +960,7 @@ function RiderView({ userId }: { userId: string }) {
   const handleDeliver = async (o: OrderRow) => {
     try {
       await markDelivered(o.id);
+      await refetch();
       toast.success(`Delivered · +$${riderPayout(o.delivery_fee).toFixed(2)} released`);
     } catch (err) {
       toast.error((err as Error).message ?? "Couldn't update");
@@ -952,7 +996,12 @@ function RiderView({ userId }: { userId: string }) {
               </div>
             )}
             {!loading && openGigs.map((o) => (
-              <GigCard key={o.id} order={o} onAccept={() => handleAccept(o)} />
+              <GigCard
+                key={o.id}
+                order={o}
+                isOwnOrder={o.neighbor_id === userId}
+                onAccept={() => handleAccept(o)}
+              />
             ))}
             {!loading && openGigs.length === 0 && (
               <div className="text-center py-10 text-sm text-muted-foreground bg-white rounded-2xl border border-border">
@@ -1050,10 +1099,18 @@ function Stat({
   );
 }
 
-function GigCard({ order, onAccept }: { order: OrderRow; onAccept: () => void }) {
+function GigCard({
+  order,
+  isOwnOrder = false,
+  onAccept,
+}: {
+  order: OrderRow;
+  isOwnOrder?: boolean;
+  onAccept: () => void;
+}) {
   const { settings } = useSettings();
   const payout = riderPayout(order.delivery_fee);
-  const itemCount = order.items.reduce((s, i) => s + (i.qty ?? 1), 0);
+  const itemCount = order.item_count ?? order.items.reduce((s, i) => s + (i.qty ?? 1), 0);
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-lift)] hover:-translate-y-0.5 transition p-4 sm:p-5 min-w-0">
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 sm:gap-4">
@@ -1095,9 +1152,10 @@ function GigCard({ order, onAccept }: { order: OrderRow; onAccept: () => void })
 
       <button
         onClick={onAccept}
+        disabled={isOwnOrder}
         className="mt-4 w-full rounded-xl bg-primary text-[var(--forest)] font-bold text-sm px-4 py-3 shadow-[var(--shadow-mint)] border border-[var(--forest)]/15 hover:brightness-105 active:scale-[0.99] transition"
       >
-        Accept &amp; Lock Gig
+        {isOwnOrder ? "Visible to nearby riders" : "Accept & Lock Gig"}
       </button>
     </div>
   );
