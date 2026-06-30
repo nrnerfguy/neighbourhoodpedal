@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           delivery_fee: number
           distance_miles: number
+          item_count: number
           items_total: number
           order_id: string
           platform_fee: number
@@ -33,6 +34,7 @@ export type Database = {
           created_at: string
           delivery_fee?: number
           distance_miles?: number
+          item_count?: number
           items_total?: number
           order_id: string
           platform_fee?: number
@@ -47,6 +49,7 @@ export type Database = {
           created_at?: string
           delivery_fee?: number
           distance_miles?: number
+          item_count?: number
           items_total?: number
           order_id?: string
           platform_fee?: number
