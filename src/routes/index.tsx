@@ -740,7 +740,8 @@ function PriceCard({
           value={`$${deliveryFee.toFixed(2)}`}
         />
         <div className="-mt-1 text-[11px] text-muted-foreground">
-          $2.00 base + $0.50 / km · {km.toFixed(2)} km to store
+          $2.00 base + $0.50 / km · {km.toFixed(2)} km
+          {loadUnits > 0 ? ` + $${PER_ITEM_FEE.toFixed(2)} × ${loadUnits} extra item${loadUnits === 1 ? "" : "s"}` : ` · first ${FREE_ITEMS} items no load fee`}
         </div>
         <Row
           label="Estimated delivery"
