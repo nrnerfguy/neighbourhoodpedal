@@ -1089,7 +1089,12 @@ function RiderView({ userId }: { userId: string }) {
                     Accept a gig to start a run.
                   </div>
                 )}
-                {myActive.map((o) => (
+                {myActive.map((o) => {
+                  const store = STORES.find((s) => s.name === o.store_name);
+                  const mapsUrl = store
+                    ? googleMapsDirectionsUrl(null, { lat: store.lat, lng: store.lng })
+                    : null;
+                  return (
                   <div key={o.id} className="px-5 py-4 min-w-0">
                     <div className="flex items-center justify-between gap-2 min-w-0">
                       <div className="font-semibold text-sm truncate">
@@ -1102,6 +1107,17 @@ function RiderView({ userId }: { userId: string }) {
                     <div className="text-xs text-muted-foreground mt-0.5 truncate">
                       {o.items.length} items · {formatDistance(o.distance_miles, settings.units)}
                     </div>
+                    {mapsUrl && (
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-[11px] font-semibold text-[var(--forest)] hover:underline"
+                      >
+                        Navigate in Google Maps ↗
+                      </a>
+                    )}
+
                     {o.notes && (
                       <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">📝 {o.notes}</div>
                     )}
