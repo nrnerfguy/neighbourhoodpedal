@@ -681,6 +681,7 @@ function Card({
 
 function PriceCard({
   itemsTotal,
+  itemCount,
   deliveryFee,
   distanceMiles,
   platformFee,
@@ -692,6 +693,7 @@ function PriceCard({
   disabled,
 }: {
   itemsTotal: number;
+  itemCount: number;
   deliveryFee: number;
   distanceMiles: number;
   platformFee: number;
@@ -703,6 +705,7 @@ function PriceCard({
   disabled: boolean;
 }) {
   const km = distanceMiles * MILES_TO_KM;
+  const loadUnits = Math.max(0, itemCount - FREE_ITEMS);
   const eta = computeEta(distanceMiles);
 
   return (
