@@ -6,10 +6,14 @@ export type Settings = {
   units: Units;
   neighborhood: string;
   riderName: string;
-  baseDeliveryFee: number; // dollars; rider gets 95%
-  platformServiceFee: number; // dollars
+  baseDeliveryFee: number; // legacy; unused since fee is $2 + $0.50/km + $0.25/item
+  platformServiceFee: number; // legacy; kept for storage compat but always treated as 0
   notifications: boolean;
   ecoSummary: boolean;
+  /** Drop-off location. If null, the app falls back to the neighborhood default center. */
+  homeLat: number | null;
+  homeLng: number | null;
+  homeLabel: string; // free-form label, e.g. "12 Maple Ave, Apt 3B"
 };
 
 const DEFAULTS: Settings = {
@@ -17,10 +21,14 @@ const DEFAULTS: Settings = {
   neighborhood: "Maple Heights",
   riderName: "Alex",
   baseDeliveryFee: 4.0,
-  platformServiceFee: 0.5,
+  platformServiceFee: 0,
   notifications: true,
   ecoSummary: true,
+  homeLat: null,
+  homeLng: null,
+  homeLabel: "",
 };
+
 
 const KEY = "pedal.settings.v1";
 
