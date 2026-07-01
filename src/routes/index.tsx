@@ -19,6 +19,8 @@ import {
   type OrderRow,
   type OrderItem,
 } from "@/lib/orders";
+import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, MiniMap, type Coord } from "@/lib/geo";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -241,13 +243,18 @@ const ERRAND_TYPES = ["All", "Grocery", "Pharmacy", "Bakery", "Custom Errand"];
 type Store = {
   name: string;
   tag: string;
-  miles: number;
+  miles: number; // fallback distance from HOME_BASE, kept for legacy display
+  lat: number;
+  lng: number;
   emoji: string;
   catalog: CatalogItem[];
 };
+// Store coordinates are placed around HOME_BASE (see src/lib/geo.tsx).
+// Roughly: 1 deg lat ≈ 69 mi; 1 deg lng at 43.6°N ≈ 50 mi.
 const STORES: Store[] = [
   {
     name: "Community Grocer", tag: "Fresh produce", miles: 0.4, emoji: "🥬",
+    lat: 43.6538, lng: -79.3903,
     catalog: [
       { name: "1L Organic Milk", price: 4.5, emoji: "🥛" },
       { name: "Eggs (dozen)", price: 5.75, emoji: "🥚" },
@@ -259,6 +266,7 @@ const STORES: Store[] = [
   },
   {
     name: "Maple St. Pharmacy", tag: "OTC & scripts", miles: 0.6, emoji: "💊",
+    lat: 43.6580, lng: -79.3765,
     catalog: [
       { name: "Ibuprofen 200mg", price: 7.99, emoji: "💊" },
       { name: "Bandages pack", price: 4.5, emoji: "🩹" },
@@ -268,6 +276,7 @@ const STORES: Store[] = [
   },
   {
     name: "Sunrise Bakery", tag: "Bread & pastries", miles: 0.3, emoji: "🥐",
+    lat: 43.6510, lng: -79.3865,
     catalog: [
       { name: "Sourdough loaf", price: 6.0, emoji: "🍞" },
       { name: "Butter croissant", price: 3.5, emoji: "🥐" },
@@ -277,6 +286,7 @@ const STORES: Store[] = [
   },
   {
     name: "Corner Hardware", tag: "Tools & odds", miles: 0.8, emoji: "🔧",
+    lat: 43.6607, lng: -79.3721,
     catalog: [
       { name: "AA batteries (8pk)", price: 8.5, emoji: "🔋" },
       { name: "Duct tape", price: 6.0, emoji: "🩶" },
@@ -285,6 +295,7 @@ const STORES: Store[] = [
   },
   {
     name: "Green Leaf Market", tag: "Organic", miles: 1.1, emoji: "🌿",
+    lat: 43.6685, lng: -79.3705,
     catalog: [
       { name: "Oat milk", price: 5.25, emoji: "🥛" },
       { name: "Granola jar", price: 8.0, emoji: "🥣" },
@@ -293,6 +304,18 @@ const STORES: Store[] = [
     ],
   },
 ];
+
+/** Neighbor's chosen drop-off coord, or the neighborhood default if unset. */
+function useHomeCoord(): Coord {
+  const { settings } = useSettings();
+  return useMemo<Coord>(() => {
+    if (settings.homeLat !== null && settings.homeLng !== null) {
+      return { lat: settings.homeLat, lng: settings.homeLng };
+    }
+    return HOME_BASE;
+  }, [settings.homeLat, settings.homeLng]);
+}
+
 
 function NeighborView({ userId }: { userId: string }) {
   const { settings } = useSettings();
@@ -305,14 +328,19 @@ function NeighborView({ userId }: { userId: string }) {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
+  const homeCoord = useHomeCoord();
+  const distanceMiles = useMemo(
+    () => haversineMiles(homeCoord, { lat: activeStoreData.lat, lng: activeStoreData.lng }),
+    [homeCoord, activeStoreData.lat, activeStoreData.lng],
+  );
 
   const itemsTotal = useMemo(() => items.reduce((s, i) => s + i.price * i.qty, 0), [items]);
   const itemCount = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
-  const deliveryFee = useMemo(() => computeDeliveryFee(activeStoreData.miles, itemCount), [activeStoreData.miles, itemCount]);
-  const platformFee = settings.platformServiceFee;
+  const deliveryFee = useMemo(() => computeDeliveryFee(distanceMiles, itemCount), [distanceMiles, itemCount]);
   const rider = riderPayout(deliveryFee);
   const platformCut = platformShare(deliveryFee);
-  const grandTotal = itemsTotal + deliveryFee + platformFee;
+  const grandTotal = itemsTotal + deliveryFee;
+
 
   const activeOrder = useMemo(
     () => (activeOrderId ? orders.find((o) => o.id === activeOrderId) ?? null : null),
@@ -385,11 +413,11 @@ function NeighborView({ userId }: { userId: string }) {
         store_name: activeStoreData.name,
         store_tag: activeStoreData.tag,
         store_emoji: activeStoreData.emoji,
-        distance_miles: activeStoreData.miles,
+        distance_miles: distanceMiles,
         items: orderItems,
         items_total: itemsTotal,
         delivery_fee: deliveryFee,
-        platform_fee: platformFee,
+        platform_fee: 0,
         total: grandTotal,
         notes,
       });
@@ -610,14 +638,17 @@ function NeighborView({ userId }: { userId: string }) {
               itemsTotal={itemsTotal}
               itemCount={itemCount}
               deliveryFee={deliveryFee}
-              distanceMiles={activeStoreData.miles}
-              platformFee={platformFee}
+              distanceMiles={distanceMiles}
               rider={rider}
               platformCut={platformCut}
               grandTotal={grandTotal}
               phase={phase}
               onStart={openReview}
               disabled={items.length === 0}
+              store={activeStoreData}
+              homeCoord={homeCoord}
+              homeLabel={settings.homeLabel}
+              hasHomePin={settings.homeLat !== null && settings.homeLng !== null}
             />
           )}
           <EscrowCard />
@@ -631,14 +662,16 @@ function NeighborView({ userId }: { userId: string }) {
           items={items}
           itemsTotal={itemsTotal}
           deliveryFee={deliveryFee}
-          platformFee={platformFee}
+          distanceMiles={distanceMiles}
           rider={rider}
           platformCut={platformCut}
           grandTotal={grandTotal}
+          homeCoord={homeCoord}
           onCancel={cancelReview}
           onConfirm={placeOrder}
         />
       )}
+
 
     </div>
   );
@@ -684,29 +717,36 @@ function PriceCard({
   itemCount,
   deliveryFee,
   distanceMiles,
-  platformFee,
   rider,
   platformCut,
   grandTotal,
   phase,
   onStart,
   disabled,
+  store,
+  homeCoord,
+  homeLabel,
+  hasHomePin,
 }: {
   itemsTotal: number;
   itemCount: number;
   deliveryFee: number;
   distanceMiles: number;
-  platformFee: number;
   rider: number;
   platformCut: number;
   grandTotal: number;
   phase: Phase;
   onStart: () => void;
   disabled: boolean;
+  store: Store;
+  homeCoord: Coord;
+  homeLabel: string;
+  hasHomePin: boolean;
 }) {
   const km = distanceMiles * MILES_TO_KM;
   const loadUnits = Math.max(0, itemCount - FREE_ITEMS);
   const eta = computeEta(distanceMiles);
+  const mapsUrl = googleMapsDirectionsUrl(homeCoord, { lat: store.lat, lng: store.lng });
 
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-lift)] overflow-hidden">
@@ -721,6 +761,28 @@ function PriceCard({
       </div>
 
       <div className="p-5 sm:p-6 space-y-3 text-sm min-w-0">
+        <div className="space-y-2">
+          <MiniMap
+            from={homeCoord}
+            to={{ lat: store.lat, lng: store.lng }}
+            fromLabel={hasHomePin ? "You" : "Default"}
+            toLabel={store.emoji}
+          />
+          <div className="flex items-center justify-between gap-2 text-[11px]">
+            <span className="text-muted-foreground truncate">
+              {hasHomePin ? (homeLabel || "Your pinned location") : "Using neighborhood default — set your location in Settings"}
+            </span>
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 font-semibold text-[var(--forest)] hover:underline"
+            >
+              Open in Google Maps ↗
+            </a>
+          </div>
+        </div>
+
         <Row label="Estimated items total" value={`$${itemsTotal.toFixed(2)}`} />
         <Row
           label={
@@ -731,9 +793,6 @@ function PriceCard({
                 title="90% goes directly to your neighborhood rider"
               >
                 i
-                <span className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--forest)] text-white text-[11px] px-2 py-1 opacity-0 group-hover:opacity-100 transition">
-                  90% goes directly to your rider
-                </span>
               </span>
             </span>
           }
@@ -743,14 +802,8 @@ function PriceCard({
           $2.00 base + $0.50 / km · {km.toFixed(2)} km
           {loadUnits > 0 ? ` + $${PER_ITEM_FEE.toFixed(2)} × ${loadUnits} extra item${loadUnits === 1 ? "" : "s"}` : ` · first ${FREE_ITEMS} items no load fee`}
         </div>
-        <Row
-          label="Estimated delivery"
-          value={`${eta.min}–${eta.max} min`}
-        />
+        <Row label="Estimated delivery" value={`${eta.min}–${eta.max} min`} />
 
-
-
-        {/* 90% split breakdown */}
         <div className="rounded-xl bg-[var(--mint-soft)] border border-primary/30 px-3 py-2.5 text-xs text-[var(--forest)] space-y-1">
           <div className="flex items-center justify-between">
             <span className="font-semibold">↳ Rider keeps (90%)</span>
@@ -762,12 +815,12 @@ function PriceCard({
           </div>
         </div>
 
-        <Row label="Platform service fee" value={`$${platformFee.toFixed(2)}`} />
         <div className="h-px bg-border my-2" />
         <Row
           label={<span className="font-semibold text-foreground">Total</span>}
           value={<span className="font-bold tabular-nums">${grandTotal.toFixed(2)}</span>}
         />
+
 
         <button
           onClick={onStart}
@@ -1036,7 +1089,12 @@ function RiderView({ userId }: { userId: string }) {
                     Accept a gig to start a run.
                   </div>
                 )}
-                {myActive.map((o) => (
+                {myActive.map((o) => {
+                  const store = STORES.find((s) => s.name === o.store_name);
+                  const mapsUrl = store
+                    ? googleMapsDirectionsUrl(null, { lat: store.lat, lng: store.lng })
+                    : null;
+                  return (
                   <div key={o.id} className="px-5 py-4 min-w-0">
                     <div className="flex items-center justify-between gap-2 min-w-0">
                       <div className="font-semibold text-sm truncate">
@@ -1049,6 +1107,17 @@ function RiderView({ userId }: { userId: string }) {
                     <div className="text-xs text-muted-foreground mt-0.5 truncate">
                       {o.items.length} items · {formatDistance(o.distance_miles, settings.units)}
                     </div>
+                    {mapsUrl && (
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-[11px] font-semibold text-[var(--forest)] hover:underline"
+                      >
+                        Navigate in Google Maps ↗
+                      </a>
+                    )}
+
                     {o.notes && (
                       <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">📝 {o.notes}</div>
                     )}
@@ -1068,7 +1137,8 @@ function RiderView({ userId }: { userId: string }) {
                       </button>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
             <EscrowCard />
@@ -1206,10 +1276,11 @@ function ReviewModal({
   items,
   itemsTotal,
   deliveryFee,
-  platformFee,
+  distanceMiles,
   rider,
   platformCut,
   grandTotal,
+  homeCoord,
   onCancel,
   onConfirm,
 }: {
@@ -1217,16 +1288,18 @@ function ReviewModal({
   items: Item[];
   itemsTotal: number;
   deliveryFee: number;
-  platformFee: number;
+  distanceMiles: number;
   rider: number;
   platformCut: number;
   grandTotal: number;
+  homeCoord: Coord;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   const { settings } = useSettings();
-  const km = store.miles * MILES_TO_KM;
-  const eta = computeEta(store.miles);
+  const km = distanceMiles * MILES_TO_KM;
+  const eta = computeEta(distanceMiles);
+  const mapsUrl = googleMapsDirectionsUrl(homeCoord, { lat: store.lat, lng: store.lng });
   return (
     <div className="fixed inset-0 z-50 bg-[var(--forest)]/40 backdrop-blur-sm grid place-items-end sm:place-items-center p-0 sm:p-6">
       <div className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl border border-border shadow-[var(--shadow-lift)] overflow-hidden max-h-[92vh] flex flex-col">
@@ -1236,12 +1309,24 @@ function ReviewModal({
             <div className="text-[10px] uppercase tracking-wider font-semibold text-[var(--forest)]">Step 3 of 3 · Review Order</div>
             <div className="text-lg font-extrabold truncate">{store.name}</div>
             <div className="text-xs text-muted-foreground truncate">
-              {store.tag} · {formatDistance(store.miles, settings.units)} · {eta.min}–{eta.max} min
+              {store.tag} · {formatDistance(distanceMiles, settings.units)} · {eta.min}–{eta.max} min
             </div>
           </div>
         </div>
 
         <div className="overflow-y-auto p-5 sm:p-6 space-y-4 text-sm">
+          <div className="space-y-2">
+            <MiniMap from={homeCoord} to={{ lat: store.lat, lng: store.lng }} fromLabel="You" toLabel={store.emoji} />
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-right text-[11px] font-semibold text-[var(--forest)] hover:underline"
+            >
+              Open route in Google Maps ↗
+            </a>
+          </div>
+
           <div>
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               Items ({items.reduce((s, i) => s + i.qty, 0)})
@@ -1280,7 +1365,6 @@ function ReviewModal({
           <div className="space-y-1.5">
             <Row label="Items subtotal" value={`$${itemsTotal.toFixed(2)}`} />
             <Row label="Delivery fee" value={`$${deliveryFee.toFixed(2)}`} />
-            <Row label="Platform service fee" value={`$${platformFee.toFixed(2)}`} />
             <div className="h-px bg-border my-1" />
             <Row
               label={<span className="font-semibold text-foreground">Total</span>}
@@ -1288,6 +1372,7 @@ function ReviewModal({
             />
           </div>
         </div>
+
 
         <div className="p-4 sm:p-5 border-t border-border bg-white flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
           <button
