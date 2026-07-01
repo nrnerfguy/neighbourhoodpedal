@@ -328,14 +328,19 @@ function NeighborView({ userId }: { userId: string }) {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
+  const homeCoord = useHomeCoord();
+  const distanceMiles = useMemo(
+    () => haversineMiles(homeCoord, { lat: activeStoreData.lat, lng: activeStoreData.lng }),
+    [homeCoord, activeStoreData.lat, activeStoreData.lng],
+  );
 
   const itemsTotal = useMemo(() => items.reduce((s, i) => s + i.price * i.qty, 0), [items]);
   const itemCount = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
-  const deliveryFee = useMemo(() => computeDeliveryFee(activeStoreData.miles, itemCount), [activeStoreData.miles, itemCount]);
-  const platformFee = settings.platformServiceFee;
+  const deliveryFee = useMemo(() => computeDeliveryFee(distanceMiles, itemCount), [distanceMiles, itemCount]);
   const rider = riderPayout(deliveryFee);
   const platformCut = platformShare(deliveryFee);
-  const grandTotal = itemsTotal + deliveryFee + platformFee;
+  const grandTotal = itemsTotal + deliveryFee;
+
 
   const activeOrder = useMemo(
     () => (activeOrderId ? orders.find((o) => o.id === activeOrderId) ?? null : null),
