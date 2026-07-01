@@ -717,29 +717,36 @@ function PriceCard({
   itemCount,
   deliveryFee,
   distanceMiles,
-  platformFee,
   rider,
   platformCut,
   grandTotal,
   phase,
   onStart,
   disabled,
+  store,
+  homeCoord,
+  homeLabel,
+  hasHomePin,
 }: {
   itemsTotal: number;
   itemCount: number;
   deliveryFee: number;
   distanceMiles: number;
-  platformFee: number;
   rider: number;
   platformCut: number;
   grandTotal: number;
   phase: Phase;
   onStart: () => void;
   disabled: boolean;
+  store: Store;
+  homeCoord: Coord;
+  homeLabel: string;
+  hasHomePin: boolean;
 }) {
   const km = distanceMiles * MILES_TO_KM;
   const loadUnits = Math.max(0, itemCount - FREE_ITEMS);
   const eta = computeEta(distanceMiles);
+  const mapsUrl = googleMapsDirectionsUrl(homeCoord, { lat: store.lat, lng: store.lng });
 
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-lift)] overflow-hidden">
@@ -754,6 +761,28 @@ function PriceCard({
       </div>
 
       <div className="p-5 sm:p-6 space-y-3 text-sm min-w-0">
+        <div className="space-y-2">
+          <MiniMap
+            from={homeCoord}
+            to={{ lat: store.lat, lng: store.lng }}
+            fromLabel={hasHomePin ? "You" : "Default"}
+            toLabel={store.emoji}
+          />
+          <div className="flex items-center justify-between gap-2 text-[11px]">
+            <span className="text-muted-foreground truncate">
+              {hasHomePin ? (homeLabel || "Your pinned location") : "Using neighborhood default — set your location in Settings"}
+            </span>
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 font-semibold text-[var(--forest)] hover:underline"
+            >
+              Open in Google Maps ↗
+            </a>
+          </div>
+        </div>
+
         <Row label="Estimated items total" value={`$${itemsTotal.toFixed(2)}`} />
         <Row
           label={
@@ -764,9 +793,6 @@ function PriceCard({
                 title="90% goes directly to your neighborhood rider"
               >
                 i
-                <span className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--forest)] text-white text-[11px] px-2 py-1 opacity-0 group-hover:opacity-100 transition">
-                  90% goes directly to your rider
-                </span>
               </span>
             </span>
           }
@@ -776,14 +802,8 @@ function PriceCard({
           $2.00 base + $0.50 / km · {km.toFixed(2)} km
           {loadUnits > 0 ? ` + $${PER_ITEM_FEE.toFixed(2)} × ${loadUnits} extra item${loadUnits === 1 ? "" : "s"}` : ` · first ${FREE_ITEMS} items no load fee`}
         </div>
-        <Row
-          label="Estimated delivery"
-          value={`${eta.min}–${eta.max} min`}
-        />
+        <Row label="Estimated delivery" value={`${eta.min}–${eta.max} min`} />
 
-
-
-        {/* 90% split breakdown */}
         <div className="rounded-xl bg-[var(--mint-soft)] border border-primary/30 px-3 py-2.5 text-xs text-[var(--forest)] space-y-1">
           <div className="flex items-center justify-between">
             <span className="font-semibold">↳ Rider keeps (90%)</span>
@@ -795,12 +815,12 @@ function PriceCard({
           </div>
         </div>
 
-        <Row label="Platform service fee" value={`$${platformFee.toFixed(2)}`} />
         <div className="h-px bg-border my-2" />
         <Row
           label={<span className="font-semibold text-foreground">Total</span>}
           value={<span className="font-bold tabular-nums">${grandTotal.toFixed(2)}</span>}
         />
+
 
         <button
           onClick={onStart}
