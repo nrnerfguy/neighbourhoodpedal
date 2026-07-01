@@ -1137,7 +1137,9 @@ function RiderView({ userId }: { userId: string }) {
                       </button>
                     )}
                   </div>
-                ))}
+                  </div>
+                  );
+                })}
               </div>
             </div>
             <EscrowCard />
