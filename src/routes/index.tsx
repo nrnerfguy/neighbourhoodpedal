@@ -413,11 +413,11 @@ function NeighborView({ userId }: { userId: string }) {
         store_name: activeStoreData.name,
         store_tag: activeStoreData.tag,
         store_emoji: activeStoreData.emoji,
-        distance_miles: activeStoreData.miles,
+        distance_miles: distanceMiles,
         items: orderItems,
         items_total: itemsTotal,
         delivery_fee: deliveryFee,
-        platform_fee: platformFee,
+        platform_fee: 0,
         total: grandTotal,
         notes,
       });
