@@ -608,6 +608,7 @@ function NeighborView({ userId }: { userId: string }) {
           ) : (
             <PriceCard
               itemsTotal={itemsTotal}
+              itemCount={itemCount}
               deliveryFee={deliveryFee}
               distanceMiles={activeStoreData.miles}
               platformFee={platformFee}
