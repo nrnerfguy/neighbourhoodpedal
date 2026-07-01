@@ -1259,10 +1259,11 @@ function ReviewModal({
   items,
   itemsTotal,
   deliveryFee,
-  platformFee,
+  distanceMiles,
   rider,
   platformCut,
   grandTotal,
+  homeCoord,
   onCancel,
   onConfirm,
 }: {
@@ -1270,16 +1271,18 @@ function ReviewModal({
   items: Item[];
   itemsTotal: number;
   deliveryFee: number;
-  platformFee: number;
+  distanceMiles: number;
   rider: number;
   platformCut: number;
   grandTotal: number;
+  homeCoord: Coord;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   const { settings } = useSettings();
-  const km = store.miles * MILES_TO_KM;
-  const eta = computeEta(store.miles);
+  const km = distanceMiles * MILES_TO_KM;
+  const eta = computeEta(distanceMiles);
+  const mapsUrl = googleMapsDirectionsUrl(homeCoord, { lat: store.lat, lng: store.lng });
   return (
     <div className="fixed inset-0 z-50 bg-[var(--forest)]/40 backdrop-blur-sm grid place-items-end sm:place-items-center p-0 sm:p-6">
       <div className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl border border-border shadow-[var(--shadow-lift)] overflow-hidden max-h-[92vh] flex flex-col">
@@ -1289,12 +1292,24 @@ function ReviewModal({
             <div className="text-[10px] uppercase tracking-wider font-semibold text-[var(--forest)]">Step 3 of 3 · Review Order</div>
             <div className="text-lg font-extrabold truncate">{store.name}</div>
             <div className="text-xs text-muted-foreground truncate">
-              {store.tag} · {formatDistance(store.miles, settings.units)} · {eta.min}–{eta.max} min
+              {store.tag} · {formatDistance(distanceMiles, settings.units)} · {eta.min}–{eta.max} min
             </div>
           </div>
         </div>
 
         <div className="overflow-y-auto p-5 sm:p-6 space-y-4 text-sm">
+          <div className="space-y-2">
+            <MiniMap from={homeCoord} to={{ lat: store.lat, lng: store.lng }} fromLabel="You" toLabel={store.emoji} />
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-right text-[11px] font-semibold text-[var(--forest)] hover:underline"
+            >
+              Open route in Google Maps ↗
+            </a>
+          </div>
+
           <div>
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               Items ({items.reduce((s, i) => s + i.qty, 0)})
@@ -1333,7 +1348,6 @@ function ReviewModal({
           <div className="space-y-1.5">
             <Row label="Items subtotal" value={`$${itemsTotal.toFixed(2)}`} />
             <Row label="Delivery fee" value={`$${deliveryFee.toFixed(2)}`} />
-            <Row label="Platform service fee" value={`$${platformFee.toFixed(2)}`} />
             <div className="h-px bg-border my-1" />
             <Row
               label={<span className="font-semibold text-foreground">Total</span>}
@@ -1341,6 +1355,7 @@ function ReviewModal({
             />
           </div>
         </div>
+
 
         <div className="p-4 sm:p-5 border-t border-border bg-white flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
           <button
