@@ -169,12 +169,17 @@ export async function placeOrder(input: {
 }
 
 export async function acceptOrder(orderId: string, riderId: string) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .update({ rider_id: riderId, status: "accepted", accepted_at: new Date().toISOString() })
     .eq("id", orderId)
-    .eq("status", "open");
+    .eq("status", "open")
+    .is("rider_id", null)
+    .select("id");
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error("Gig was just claimed by another rider");
+  }
 }
 
 export async function markPickedUp(orderId: string) {
