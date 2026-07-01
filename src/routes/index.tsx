@@ -307,7 +307,8 @@ function NeighborView({ userId }: { userId: string }) {
   const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
 
   const itemsTotal = useMemo(() => items.reduce((s, i) => s + i.price * i.qty, 0), [items]);
-  const deliveryFee = useMemo(() => computeDeliveryFee(activeStoreData.miles), [activeStoreData.miles]);
+  const itemCount = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
+  const deliveryFee = useMemo(() => computeDeliveryFee(activeStoreData.miles, itemCount), [activeStoreData.miles, itemCount]);
   const platformFee = settings.platformServiceFee;
   const rider = riderPayout(deliveryFee);
   const platformCut = platformShare(deliveryFee);
