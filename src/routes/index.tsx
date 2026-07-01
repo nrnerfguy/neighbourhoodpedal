@@ -638,14 +638,17 @@ function NeighborView({ userId }: { userId: string }) {
               itemsTotal={itemsTotal}
               itemCount={itemCount}
               deliveryFee={deliveryFee}
-              distanceMiles={activeStoreData.miles}
-              platformFee={platformFee}
+              distanceMiles={distanceMiles}
               rider={rider}
               platformCut={platformCut}
               grandTotal={grandTotal}
               phase={phase}
               onStart={openReview}
               disabled={items.length === 0}
+              store={activeStoreData}
+              homeCoord={homeCoord}
+              homeLabel={settings.homeLabel}
+              hasHomePin={settings.homeLat !== null && settings.homeLng !== null}
             />
           )}
           <EscrowCard />
@@ -659,14 +662,16 @@ function NeighborView({ userId }: { userId: string }) {
           items={items}
           itemsTotal={itemsTotal}
           deliveryFee={deliveryFee}
-          platformFee={platformFee}
+          distanceMiles={distanceMiles}
           rider={rider}
           platformCut={platformCut}
           grandTotal={grandTotal}
+          homeCoord={homeCoord}
           onCancel={cancelReview}
           onConfirm={placeOrder}
         />
       )}
+
 
     </div>
   );
