@@ -204,11 +204,14 @@ type Item = { id: string; name: string; price: number; emoji: string; qty: numbe
 type Phase = "build" | "review" | "loading" | "tracking";
 const ACTIVE_ORDER_KEY = "pedal.activeOrderId.v1";
 
-/** Delivery fee: $2 base + $0.50 per km from store to drop-off. */
+/** Delivery fee: $2 base + $0.50/km + $0.25 per item after the first 2 (load fee). */
 const MILES_TO_KM = 1.60934;
-function computeDeliveryFee(miles: number) {
+const FREE_ITEMS = 2;
+const PER_ITEM_FEE = 0.25;
+function computeDeliveryFee(miles: number, itemCount = 0) {
   const km = miles * MILES_TO_KM;
-  return Math.round((2 + 0.5 * km) * 100) / 100;
+  const loadUnits = Math.max(0, itemCount - FREE_ITEMS);
+  return Math.round((2 + 0.5 * km + PER_ITEM_FEE * loadUnits) * 100) / 100;
 }
 
 /** Map order status → tracker step (0–4). */
