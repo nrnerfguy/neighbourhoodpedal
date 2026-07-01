@@ -204,11 +204,14 @@ type Item = { id: string; name: string; price: number; emoji: string; qty: numbe
 type Phase = "build" | "review" | "loading" | "tracking";
 const ACTIVE_ORDER_KEY = "pedal.activeOrderId.v1";
 
-/** Delivery fee: $2 base + $0.50 per km from store to drop-off. */
+/** Delivery fee: $2 base + $0.50/km + $0.25 per item after the first 2 (load fee). */
 const MILES_TO_KM = 1.60934;
-function computeDeliveryFee(miles: number) {
+const FREE_ITEMS = 2;
+const PER_ITEM_FEE = 0.25;
+function computeDeliveryFee(miles: number, itemCount = 0) {
   const km = miles * MILES_TO_KM;
-  return Math.round((2 + 0.5 * km) * 100) / 100;
+  const loadUnits = Math.max(0, itemCount - FREE_ITEMS);
+  return Math.round((2 + 0.5 * km + PER_ITEM_FEE * loadUnits) * 100) / 100;
 }
 
 /** Map order status → tracker step (0–4). */
@@ -304,7 +307,8 @@ function NeighborView({ userId }: { userId: string }) {
   const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
 
   const itemsTotal = useMemo(() => items.reduce((s, i) => s + i.price * i.qty, 0), [items]);
-  const deliveryFee = useMemo(() => computeDeliveryFee(activeStoreData.miles), [activeStoreData.miles]);
+  const itemCount = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
+  const deliveryFee = useMemo(() => computeDeliveryFee(activeStoreData.miles, itemCount), [activeStoreData.miles, itemCount]);
   const platformFee = settings.platformServiceFee;
   const rider = riderPayout(deliveryFee);
   const platformCut = platformShare(deliveryFee);
@@ -604,6 +608,7 @@ function NeighborView({ userId }: { userId: string }) {
           ) : (
             <PriceCard
               itemsTotal={itemsTotal}
+              itemCount={itemCount}
               deliveryFee={deliveryFee}
               distanceMiles={activeStoreData.miles}
               platformFee={platformFee}
@@ -676,6 +681,7 @@ function Card({
 
 function PriceCard({
   itemsTotal,
+  itemCount,
   deliveryFee,
   distanceMiles,
   platformFee,
@@ -687,6 +693,7 @@ function PriceCard({
   disabled,
 }: {
   itemsTotal: number;
+  itemCount: number;
   deliveryFee: number;
   distanceMiles: number;
   platformFee: number;
@@ -698,6 +705,7 @@ function PriceCard({
   disabled: boolean;
 }) {
   const km = distanceMiles * MILES_TO_KM;
+  const loadUnits = Math.max(0, itemCount - FREE_ITEMS);
   const eta = computeEta(distanceMiles);
 
   return (
@@ -732,7 +740,8 @@ function PriceCard({
           value={`$${deliveryFee.toFixed(2)}`}
         />
         <div className="-mt-1 text-[11px] text-muted-foreground">
-          $2.00 base + $0.50 / km · {km.toFixed(2)} km to store
+          $2.00 base + $0.50 / km · {km.toFixed(2)} km
+          {loadUnits > 0 ? ` + $${PER_ITEM_FEE.toFixed(2)} × ${loadUnits} extra item${loadUnits === 1 ? "" : "s"}` : ` · first ${FREE_ITEMS} items no load fee`}
         </div>
         <Row
           label="Estimated delivery"
@@ -1249,15 +1258,24 @@ function ReviewModal({
             </ul>
           </div>
 
-          <div className="rounded-xl border border-primary/30 bg-[var(--mint-soft)] p-3 text-xs text-[var(--forest)]">
-            <div className="font-semibold">Delivery fee formula</div>
-            <div className="opacity-90 mt-0.5">
-              $2.00 base + $0.50 / km × {km.toFixed(2)} km = <span className="font-bold">${deliveryFee.toFixed(2)}</span>
-            </div>
-            <div className="opacity-90 mt-1">
-              Rider keeps 90% (${rider.toFixed(2)}) · Pedal 10% (${platformCut.toFixed(2)})
-            </div>
-          </div>
+          {(() => {
+            const itemCount = items.reduce((s, i) => s + i.qty, 0);
+            const loadUnits = Math.max(0, itemCount - FREE_ITEMS);
+            const loadFee = loadUnits * PER_ITEM_FEE;
+            return (
+              <div className="rounded-xl border border-primary/30 bg-[var(--mint-soft)] p-3 text-xs text-[var(--forest)]">
+                <div className="font-semibold">Delivery fee formula</div>
+                <div className="opacity-90 mt-0.5">
+                  $2.00 base + $0.50 × {km.toFixed(2)} km
+                  {loadUnits > 0 ? ` + $${PER_ITEM_FEE.toFixed(2)} × ${loadUnits} extra item${loadUnits === 1 ? "" : "s"} ($${loadFee.toFixed(2)})` : ` (first ${FREE_ITEMS} items no load fee)`}
+                  {" = "}<span className="font-bold">${deliveryFee.toFixed(2)}</span>
+                </div>
+                <div className="opacity-90 mt-1">
+                  Rider keeps 90% (${rider.toFixed(2)}) · Pedal 10% (${platformCut.toFixed(2)})
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="space-y-1.5">
             <Row label="Items subtotal" value={`$${itemsTotal.toFixed(2)}`} />
