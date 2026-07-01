@@ -186,3 +186,102 @@ function Toggle({
     </div>
   );
 }
+
+function LocationSection() {
+  const { settings, update } = useSettings();
+  const [label, setLabel] = useState(settings.homeLabel);
+  const [locating, setLocating] = useState(false);
+
+  const saveLabel = () => {
+    if (label === settings.homeLabel) return;
+    if (update("homeLabel", label)) toast.success("Address label saved", { duration: 1800 });
+  };
+
+  const clearLocation = () => {
+    update("homeLat", null);
+    update("homeLng", null);
+    update("homeLabel", "");
+    setLabel("");
+    toast.success("Location cleared — using neighborhood default", { duration: 2000 });
+  };
+
+  const useCurrentLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      toast.error("Geolocation isn't available on this device");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(6));
+        const lng = Number(pos.coords.longitude.toFixed(6));
+        update("homeLat", lat);
+        update("homeLng", lng);
+        setLocating(false);
+        toast.success(`Location pinned (${lat.toFixed(4)}, ${lng.toFixed(4)})`, { duration: 2200 });
+      },
+      (err) => {
+        setLocating(false);
+        toast.error(err.message || "Couldn't get your location");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  };
+
+  const hasCoords = settings.homeLat !== null && settings.homeLng !== null;
+
+  return (
+    <Section
+      title="Delivery location"
+      subtitle="Riders need to know where to drop off. Use your device location or type an address label."
+    >
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={useCurrentLocation}
+            disabled={locating}
+            className="flex-1 rounded-xl bg-primary text-[var(--forest)] font-semibold text-sm px-4 py-2.5 shadow-[var(--shadow-mint)] border border-[var(--forest)]/15 hover:brightness-105 active:scale-[0.99] transition disabled:opacity-60"
+          >
+            {locating ? "Locating…" : hasCoords ? "Update to current location" : "Use my current location"}
+          </button>
+          {hasCoords && (
+            <button
+              onClick={clearLocation}
+              className="rounded-xl border border-border bg-white text-xs font-semibold text-muted-foreground hover:text-destructive hover:border-destructive/30 px-4 py-2.5 transition"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-[var(--silver)]/60 px-3 py-2.5 text-xs">
+          {hasCoords ? (
+            <span className="text-[var(--forest)] font-medium tabular-nums">
+              📍 {settings.homeLat!.toFixed(5)}, {settings.homeLng!.toFixed(5)}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              No pin set — falling back to the {settings.neighborhood} neighborhood center.
+            </span>
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">
+            Address label (shown to your rider)
+          </label>
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            onBlur={saveLabel}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            placeholder="e.g. 12 Maple Ave, Apt 3B — buzzer #305"
+            className="mt-1 w-full rounded-xl border border-border bg-white focus:border-primary focus:ring-4 focus:ring-primary/15 outline-none px-3 py-2.5 text-sm transition"
+          />
+        </div>
+      </div>
+    </Section>
+  );
+}
