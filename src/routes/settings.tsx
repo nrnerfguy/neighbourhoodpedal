@@ -59,6 +59,8 @@ function SettingsPage() {
           </p>
         </div>
 
+        <LocationSection />
+
         <Section title="Distance units" subtitle="How distances appear across the app.">
           <SegmentedControl
             value={settings.units}
@@ -71,6 +73,7 @@ function SettingsPage() {
             ]}
           />
         </Section>
+
 
         <Section title="Notifications">
           <Toggle
