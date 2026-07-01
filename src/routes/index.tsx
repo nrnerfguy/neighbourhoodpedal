@@ -243,13 +243,18 @@ const ERRAND_TYPES = ["All", "Grocery", "Pharmacy", "Bakery", "Custom Errand"];
 type Store = {
   name: string;
   tag: string;
-  miles: number;
+  miles: number; // fallback distance from HOME_BASE, kept for legacy display
+  lat: number;
+  lng: number;
   emoji: string;
   catalog: CatalogItem[];
 };
+// Store coordinates are placed around HOME_BASE (see src/lib/geo.tsx).
+// Roughly: 1 deg lat ≈ 69 mi; 1 deg lng at 43.6°N ≈ 50 mi.
 const STORES: Store[] = [
   {
     name: "Community Grocer", tag: "Fresh produce", miles: 0.4, emoji: "🥬",
+    lat: 43.6538, lng: -79.3903,
     catalog: [
       { name: "1L Organic Milk", price: 4.5, emoji: "🥛" },
       { name: "Eggs (dozen)", price: 5.75, emoji: "🥚" },
@@ -261,6 +266,7 @@ const STORES: Store[] = [
   },
   {
     name: "Maple St. Pharmacy", tag: "OTC & scripts", miles: 0.6, emoji: "💊",
+    lat: 43.6580, lng: -79.3765,
     catalog: [
       { name: "Ibuprofen 200mg", price: 7.99, emoji: "💊" },
       { name: "Bandages pack", price: 4.5, emoji: "🩹" },
@@ -270,6 +276,7 @@ const STORES: Store[] = [
   },
   {
     name: "Sunrise Bakery", tag: "Bread & pastries", miles: 0.3, emoji: "🥐",
+    lat: 43.6510, lng: -79.3865,
     catalog: [
       { name: "Sourdough loaf", price: 6.0, emoji: "🍞" },
       { name: "Butter croissant", price: 3.5, emoji: "🥐" },
@@ -279,6 +286,7 @@ const STORES: Store[] = [
   },
   {
     name: "Corner Hardware", tag: "Tools & odds", miles: 0.8, emoji: "🔧",
+    lat: 43.6607, lng: -79.3721,
     catalog: [
       { name: "AA batteries (8pk)", price: 8.5, emoji: "🔋" },
       { name: "Duct tape", price: 6.0, emoji: "🩶" },
@@ -287,6 +295,7 @@ const STORES: Store[] = [
   },
   {
     name: "Green Leaf Market", tag: "Organic", miles: 1.1, emoji: "🌿",
+    lat: 43.6685, lng: -79.3705,
     catalog: [
       { name: "Oat milk", price: 5.25, emoji: "🥛" },
       { name: "Granola jar", price: 8.0, emoji: "🥣" },
@@ -295,6 +304,18 @@ const STORES: Store[] = [
     ],
   },
 ];
+
+/** Neighbor's chosen drop-off coord, or the neighborhood default if unset. */
+function useHomeCoord(): Coord {
+  const { settings } = useSettings();
+  return useMemo<Coord>(() => {
+    if (settings.homeLat !== null && settings.homeLng !== null) {
+      return { lat: settings.homeLat, lng: settings.homeLng };
+    }
+    return HOME_BASE;
+  }, [settings.homeLat, settings.homeLng]);
+}
+
 
 function NeighborView({ userId }: { userId: string }) {
   const { settings } = useSettings();
