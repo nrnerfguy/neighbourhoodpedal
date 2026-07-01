@@ -1258,15 +1258,24 @@ function ReviewModal({
             </ul>
           </div>
 
-          <div className="rounded-xl border border-primary/30 bg-[var(--mint-soft)] p-3 text-xs text-[var(--forest)]">
-            <div className="font-semibold">Delivery fee formula</div>
-            <div className="opacity-90 mt-0.5">
-              $2.00 base + $0.50 / km × {km.toFixed(2)} km = <span className="font-bold">${deliveryFee.toFixed(2)}</span>
-            </div>
-            <div className="opacity-90 mt-1">
-              Rider keeps 90% (${rider.toFixed(2)}) · Pedal 10% (${platformCut.toFixed(2)})
-            </div>
-          </div>
+          {(() => {
+            const itemCount = items.reduce((s, i) => s + i.qty, 0);
+            const loadUnits = Math.max(0, itemCount - FREE_ITEMS);
+            const loadFee = loadUnits * PER_ITEM_FEE;
+            return (
+              <div className="rounded-xl border border-primary/30 bg-[var(--mint-soft)] p-3 text-xs text-[var(--forest)]">
+                <div className="font-semibold">Delivery fee formula</div>
+                <div className="opacity-90 mt-0.5">
+                  $2.00 base + $0.50 × {km.toFixed(2)} km
+                  {loadUnits > 0 ? ` + $${PER_ITEM_FEE.toFixed(2)} × ${loadUnits} extra item${loadUnits === 1 ? "" : "s"} ($${loadFee.toFixed(2)})` : ` (first ${FREE_ITEMS} items no load fee)`}
+                  {" = "}<span className="font-bold">${deliveryFee.toFixed(2)}</span>
+                </div>
+                <div className="opacity-90 mt-1">
+                  Rider keeps 90% (${rider.toFixed(2)}) · Pedal 10% (${platformCut.toFixed(2)})
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="space-y-1.5">
             <Row label="Items subtotal" value={`$${itemsTotal.toFixed(2)}`} />
