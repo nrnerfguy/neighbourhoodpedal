@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useSettings, type Settings } from "@/lib/settings";
+import { reverseGeocode } from "@/lib/geo";
 import { IconFrame } from "./index";
 
 
