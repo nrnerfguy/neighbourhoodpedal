@@ -52,6 +52,11 @@ function toRow(r: Record<string, unknown>): OrderRow {
     platform_fee: Number(r.platform_fee ?? 0),
     total: Number(r.total ?? 0),
     items: Array.isArray(r.items) ? (r.items as OrderItem[]) : [],
+    neighbor_lat: r.neighbor_lat !== null && r.neighbor_lat !== undefined ? Number(r.neighbor_lat) : null,
+    neighbor_lng: r.neighbor_lng !== null && r.neighbor_lng !== undefined ? Number(r.neighbor_lng) : null,
+    neighbor_label: String(r.neighbor_label ?? ""),
+    store_lat: r.store_lat !== null && r.store_lat !== undefined ? Number(r.store_lat) : null,
+    store_lng: r.store_lng !== null && r.store_lng !== undefined ? Number(r.store_lng) : null,
   } as OrderRow;
 }
 
