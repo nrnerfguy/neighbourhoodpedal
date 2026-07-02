@@ -424,6 +424,11 @@ function NeighborView({ userId }: { userId: string }) {
         platform_fee: 0,
         total: grandTotal,
         notes,
+        neighbor_lat: settings.homeLat,
+        neighbor_lng: settings.homeLng,
+        neighbor_label: settings.homeLabel,
+        store_lat: storeCoord.lat,
+        store_lng: storeCoord.lng,
       });
       setActiveOrderId(row.id);
       if (typeof window !== "undefined") window.localStorage.setItem(`${ACTIVE_ORDER_KEY}.${userId}`, row.id);
