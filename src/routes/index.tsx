@@ -734,6 +734,7 @@ function PriceCard({
   onStart,
   disabled,
   store,
+  storeCoord,
   homeCoord,
   homeLabel,
   hasHomePin,
@@ -749,6 +750,7 @@ function PriceCard({
   onStart: () => void;
   disabled: boolean;
   store: Store;
+  storeCoord: Coord;
   homeCoord: Coord;
   homeLabel: string;
   hasHomePin: boolean;
@@ -756,7 +758,8 @@ function PriceCard({
   const km = distanceMiles * MILES_TO_KM;
   const loadUnits = Math.max(0, itemCount - FREE_ITEMS);
   const eta = computeEta(distanceMiles);
-  const mapsUrl = googleMapsDirectionsUrl(homeCoord, { lat: store.lat, lng: store.lng });
+  const gMaps = googleMapsDirectionsUrl(homeCoord, storeCoord);
+  const aMaps = appleMapsDirectionsUrl(homeCoord, storeCoord);
 
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-lift)] overflow-hidden">
