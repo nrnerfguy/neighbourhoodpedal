@@ -329,9 +329,13 @@ function NeighborView({ userId }: { userId: string }) {
 
   const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
   const homeCoord = useHomeCoord();
+  const storeCoord = useMemo<Coord>(
+    () => translateCoord({ lat: activeStoreData.lat, lng: activeStoreData.lng }, homeCoord),
+    [activeStoreData.lat, activeStoreData.lng, homeCoord],
+  );
   const distanceMiles = useMemo(
-    () => haversineMiles(homeCoord, { lat: activeStoreData.lat, lng: activeStoreData.lng }),
-    [homeCoord, activeStoreData.lat, activeStoreData.lng],
+    () => haversineMiles(homeCoord, storeCoord),
+    [homeCoord, storeCoord],
   );
 
   const itemsTotal = useMemo(() => items.reduce((s, i) => s + i.price * i.qty, 0), [items]);
