@@ -655,6 +655,7 @@ function NeighborView({ userId }: { userId: string }) {
               onStart={openReview}
               disabled={items.length === 0}
               store={activeStoreData}
+              storeCoord={storeCoord}
               homeCoord={homeCoord}
               homeLabel={settings.homeLabel}
               hasHomePin={settings.homeLat !== null && settings.homeLng !== null}
