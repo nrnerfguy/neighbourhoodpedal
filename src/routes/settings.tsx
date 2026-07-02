@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useSettings, type Settings } from "@/lib/settings";
+import { reverseGeocode } from "@/lib/geo";
 import { IconFrame } from "./index";
 
 
@@ -191,6 +192,34 @@ function LocationSection() {
   const { settings, update } = useSettings();
   const [label, setLabel] = useState(settings.homeLabel);
   const [locating, setLocating] = useState(false);
+  const [address, setAddress] = useState<string | null>(null);
+  const [addrLoading, setAddrLoading] = useState(false);
+  const lastLookup = useRef<string>("");
+
+  useEffect(() => {
+    setLabel(settings.homeLabel);
+  }, [settings.homeLabel]);
+
+  // Resolve lat/lng → human address whenever the pin changes.
+  useEffect(() => {
+    if (settings.homeLat === null || settings.homeLng === null) {
+      setAddress(null);
+      return;
+    }
+    const key = `${settings.homeLat.toFixed(5)},${settings.homeLng.toFixed(5)}`;
+    if (lastLookup.current === key) return;
+    lastLookup.current = key;
+    setAddrLoading(true);
+    let cancelled = false;
+    reverseGeocode(settings.homeLat, settings.homeLng).then((addr) => {
+      if (cancelled) return;
+      setAddress(addr);
+      setAddrLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.homeLat, settings.homeLng]);
 
   const saveLabel = () => {
     if (label === settings.homeLabel) return;
@@ -202,6 +231,8 @@ function LocationSection() {
     update("homeLng", null);
     update("homeLabel", "");
     setLabel("");
+    setAddress(null);
+    lastLookup.current = "";
     toast.success("Location cleared — using neighborhood default", { duration: 2000 });
   };
 
@@ -212,13 +243,18 @@ function LocationSection() {
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lng = Number(pos.coords.longitude.toFixed(6));
         update("homeLat", lat);
         update("homeLng", lng);
         setLocating(false);
-        toast.success(`Location pinned (${lat.toFixed(4)}, ${lng.toFixed(4)})`, { duration: 2200 });
+        setAddrLoading(true);
+        const addr = await reverseGeocode(lat, lng);
+        lastLookup.current = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+        setAddress(addr);
+        setAddrLoading(false);
+        toast.success(addr ? `Pinned: ${addr}` : "Location pinned", { duration: 2400 });
       },
       (err) => {
         setLocating(false);
@@ -254,11 +290,16 @@ function LocationSection() {
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-[var(--silver)]/60 px-3 py-2.5 text-xs">
+        <div className="rounded-xl border border-border bg-[var(--silver)]/60 px-3 py-2.5 text-xs min-w-0">
           {hasCoords ? (
-            <span className="text-[var(--forest)] font-medium tabular-nums">
-              📍 {settings.homeLat!.toFixed(5)}, {settings.homeLng!.toFixed(5)}
-            </span>
+            <div className="min-w-0">
+              <div className="text-[var(--forest)] font-semibold truncate">
+                📍 {addrLoading ? "Looking up address…" : address || "Address not found — using pin"}
+              </div>
+              <div className="text-muted-foreground tabular-nums mt-0.5">
+                {settings.homeLat!.toFixed(5)}, {settings.homeLng!.toFixed(5)}
+              </div>
+            </div>
           ) : (
             <span className="text-muted-foreground">
               No pin set — falling back to the {settings.neighborhood} neighborhood center.

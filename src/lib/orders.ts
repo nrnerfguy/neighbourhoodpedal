@@ -30,13 +30,18 @@ export type OrderRow = {
   created_at: string;
   accepted_at: string | null;
   delivered_at: string | null;
+  neighbor_lat: number | null;
+  neighbor_lng: number | null;
+  neighbor_label: string;
+  store_lat: number | null;
+  store_lng: number | null;
 };
 
 const SELECT_COLS =
-  "id,neighbor_id,rider_id,store_name,store_tag,store_emoji,distance_miles,items,items_total,delivery_fee,platform_fee,total,notes,status,created_at,accepted_at,delivered_at";
+  "id,neighbor_id,rider_id,store_name,store_tag,store_emoji,distance_miles,items,items_total,delivery_fee,platform_fee,total,notes,status,created_at,accepted_at,delivered_at,neighbor_lat,neighbor_lng,neighbor_label,store_lat,store_lng";
 
 const OPEN_GIG_COLS =
-  "order_id,store_name,store_tag,store_emoji,distance_miles,items_total,item_count,delivery_fee,platform_fee,total,status,created_at";
+  "order_id,store_name,store_tag,store_emoji,distance_miles,items_total,item_count,delivery_fee,platform_fee,total,status,created_at,store_lat,store_lng";
 
 function toRow(r: Record<string, unknown>): OrderRow {
   return {
@@ -47,6 +52,11 @@ function toRow(r: Record<string, unknown>): OrderRow {
     platform_fee: Number(r.platform_fee ?? 0),
     total: Number(r.total ?? 0),
     items: Array.isArray(r.items) ? (r.items as OrderItem[]) : [],
+    neighbor_lat: r.neighbor_lat !== null && r.neighbor_lat !== undefined ? Number(r.neighbor_lat) : null,
+    neighbor_lng: r.neighbor_lng !== null && r.neighbor_lng !== undefined ? Number(r.neighbor_lng) : null,
+    neighbor_label: String(r.neighbor_label ?? ""),
+    store_lat: r.store_lat !== null && r.store_lat !== undefined ? Number(r.store_lat) : null,
+    store_lng: r.store_lng !== null && r.store_lng !== undefined ? Number(r.store_lng) : null,
   } as OrderRow;
 }
 
@@ -97,6 +107,11 @@ export function useLiveOrders(userId: string | null | undefined) {
               created_at: String(r.created_at ?? new Date().toISOString()),
               accepted_at: null,
               delivered_at: null,
+              neighbor_lat: null,
+              neighbor_lng: null,
+              neighbor_label: "",
+              store_lat: r.store_lat !== null && r.store_lat !== undefined ? Number(r.store_lat) : null,
+              store_lng: r.store_lng !== null && r.store_lng !== undefined ? Number(r.store_lng) : null,
             }))
         : [];
 
@@ -158,6 +173,11 @@ export async function placeOrder(input: {
   platform_fee: number;
   total: number;
   notes: string;
+  neighbor_lat: number | null;
+  neighbor_lng: number | null;
+  neighbor_label: string;
+  store_lat: number | null;
+  store_lng: number | null;
 }) {
   const { data, error } = await supabase
     .from("orders")

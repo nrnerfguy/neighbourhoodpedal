@@ -25,6 +25,8 @@ export type Database = {
           platform_fee: number
           status: Database["public"]["Enums"]["order_status"]
           store_emoji: string
+          store_lat: number | null
+          store_lng: number | null
           store_name: string
           store_tag: string
           total: number
@@ -40,6 +42,8 @@ export type Database = {
           platform_fee?: number
           status?: Database["public"]["Enums"]["order_status"]
           store_emoji?: string
+          store_lat?: number | null
+          store_lng?: number | null
           store_name: string
           store_tag?: string
           total?: number
@@ -55,6 +59,8 @@ export type Database = {
           platform_fee?: number
           status?: Database["public"]["Enums"]["order_status"]
           store_emoji?: string
+          store_lat?: number | null
+          store_lng?: number | null
           store_name?: string
           store_tag?: string
           total?: number
@@ -73,11 +79,16 @@ export type Database = {
           items: Json
           items_total: number
           neighbor_id: string
+          neighbor_label: string
+          neighbor_lat: number | null
+          neighbor_lng: number | null
           notes: string
           platform_fee: number
           rider_id: string | null
           status: Database["public"]["Enums"]["order_status"]
           store_emoji: string
+          store_lat: number | null
+          store_lng: number | null
           store_name: string
           store_tag: string
           total: number
@@ -93,11 +104,16 @@ export type Database = {
           items?: Json
           items_total?: number
           neighbor_id: string
+          neighbor_label?: string
+          neighbor_lat?: number | null
+          neighbor_lng?: number | null
           notes?: string
           platform_fee?: number
           rider_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           store_emoji?: string
+          store_lat?: number | null
+          store_lng?: number | null
           store_name: string
           store_tag?: string
           total?: number
@@ -113,11 +129,16 @@ export type Database = {
           items?: Json
           items_total?: number
           neighbor_id?: string
+          neighbor_label?: string
+          neighbor_lat?: number | null
+          neighbor_lng?: number | null
           notes?: string
           platform_fee?: number
           rider_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           store_emoji?: string
+          store_lat?: number | null
+          store_lng?: number | null
           store_name?: string
           store_tag?: string
           total?: number

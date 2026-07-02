@@ -19,7 +19,7 @@ import {
   type OrderRow,
   type OrderItem,
 } from "@/lib/orders";
-import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, MiniMap, type Coord } from "@/lib/geo";
+import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, appleMapsDirectionsUrl, translateCoord, MiniMap, type Coord } from "@/lib/geo";
 
 
 export const Route = createFileRoute("/")({
@@ -329,9 +329,13 @@ function NeighborView({ userId }: { userId: string }) {
 
   const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
   const homeCoord = useHomeCoord();
+  const storeCoord = useMemo<Coord>(
+    () => translateCoord({ lat: activeStoreData.lat, lng: activeStoreData.lng }, homeCoord),
+    [activeStoreData.lat, activeStoreData.lng, homeCoord],
+  );
   const distanceMiles = useMemo(
-    () => haversineMiles(homeCoord, { lat: activeStoreData.lat, lng: activeStoreData.lng }),
-    [homeCoord, activeStoreData.lat, activeStoreData.lng],
+    () => haversineMiles(homeCoord, storeCoord),
+    [homeCoord, storeCoord],
   );
 
   const itemsTotal = useMemo(() => items.reduce((s, i) => s + i.price * i.qty, 0), [items]);
@@ -420,6 +424,11 @@ function NeighborView({ userId }: { userId: string }) {
         platform_fee: 0,
         total: grandTotal,
         notes,
+        neighbor_lat: settings.homeLat,
+        neighbor_lng: settings.homeLng,
+        neighbor_label: settings.homeLabel,
+        store_lat: storeCoord.lat,
+        store_lng: storeCoord.lng,
       });
       setActiveOrderId(row.id);
       if (typeof window !== "undefined") window.localStorage.setItem(`${ACTIVE_ORDER_KEY}.${userId}`, row.id);
@@ -646,6 +655,7 @@ function NeighborView({ userId }: { userId: string }) {
               onStart={openReview}
               disabled={items.length === 0}
               store={activeStoreData}
+              storeCoord={storeCoord}
               homeCoord={homeCoord}
               homeLabel={settings.homeLabel}
               hasHomePin={settings.homeLat !== null && settings.homeLng !== null}
@@ -659,6 +669,7 @@ function NeighborView({ userId }: { userId: string }) {
       {phase === "review" && (
         <ReviewModal
           store={activeStoreData}
+          storeCoord={storeCoord}
           items={items}
           itemsTotal={itemsTotal}
           deliveryFee={deliveryFee}
@@ -724,6 +735,7 @@ function PriceCard({
   onStart,
   disabled,
   store,
+  storeCoord,
   homeCoord,
   homeLabel,
   hasHomePin,
@@ -739,6 +751,7 @@ function PriceCard({
   onStart: () => void;
   disabled: boolean;
   store: Store;
+  storeCoord: Coord;
   homeCoord: Coord;
   homeLabel: string;
   hasHomePin: boolean;
@@ -746,7 +759,8 @@ function PriceCard({
   const km = distanceMiles * MILES_TO_KM;
   const loadUnits = Math.max(0, itemCount - FREE_ITEMS);
   const eta = computeEta(distanceMiles);
-  const mapsUrl = googleMapsDirectionsUrl(homeCoord, { lat: store.lat, lng: store.lng });
+  const gMaps = googleMapsDirectionsUrl(homeCoord, storeCoord);
+  const aMaps = appleMapsDirectionsUrl(homeCoord, storeCoord);
 
   return (
     <div className="bg-white rounded-2xl border border-border shadow-[var(--shadow-lift)] overflow-hidden">
@@ -764,22 +778,33 @@ function PriceCard({
         <div className="space-y-2">
           <MiniMap
             from={homeCoord}
-            to={{ lat: store.lat, lng: store.lng }}
+            to={storeCoord}
             fromLabel={hasHomePin ? "You" : "Default"}
-            toLabel={store.emoji}
+            toLabel={`${store.emoji} ${store.name}`}
           />
-          <div className="flex items-center justify-between gap-2 text-[11px]">
-            <span className="text-muted-foreground truncate">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+            <span className="text-muted-foreground truncate min-w-0">
               {hasHomePin ? (homeLabel || "Your pinned location") : "Using neighborhood default — set your location in Settings"}
             </span>
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="shrink-0 font-semibold text-[var(--forest)] hover:underline"
-            >
-              Open in Google Maps ↗
-            </a>
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={gMaps}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[var(--forest)] hover:underline"
+              >
+                Google Maps ↗
+              </a>
+              <span className="text-muted-foreground">·</span>
+              <a
+                href={aMaps}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[var(--forest)] hover:underline"
+              >
+                Apple Maps ↗
+              </a>
+            </div>
           </div>
         </div>
 
@@ -1090,12 +1115,28 @@ function RiderView({ userId }: { userId: string }) {
                   </div>
                 )}
                 {myActive.map((o) => {
-                  const store = STORES.find((s) => s.name === o.store_name);
-                  const mapsUrl = store
-                    ? googleMapsDirectionsUrl(null, { lat: store.lat, lng: store.lng })
+                  const hasStore = o.store_lat !== null && o.store_lng !== null;
+                  const hasHome = o.neighbor_lat !== null && o.neighbor_lng !== null;
+                  const storePt: Coord | null = hasStore
+                    ? { lat: o.store_lat as number, lng: o.store_lng as number }
                     : null;
+                  const homePt: Coord | null = hasHome
+                    ? { lat: o.neighbor_lat as number, lng: o.neighbor_lng as number }
+                    : null;
+                  const leg = o.status === "accepted" ? "to_store" : "to_neighbor";
+                  const legFrom: Coord | null = leg === "to_store" ? null : storePt;
+                  const legTo: Coord | null = leg === "to_store" ? storePt : homePt;
+                  const gMaps = legTo ? googleMapsDirectionsUrl(legFrom, legTo) : null;
+                  const aMaps = legTo ? appleMapsDirectionsUrl(legFrom, legTo) : null;
+                  const legMiles =
+                    leg === "to_store"
+                      ? o.distance_miles
+                      : legFrom && legTo
+                        ? haversineMiles(legFrom, legTo) * 0.621371
+                        : o.distance_miles;
+                  const legEta = computeEta(legMiles);
                   return (
-                  <div key={o.id} className="px-5 py-4 min-w-0">
+                  <div key={o.id} className="px-5 py-4 min-w-0 space-y-3">
                     <div className="flex items-center justify-between gap-2 min-w-0">
                       <div className="font-semibold text-sm truncate">
                         <span className="mr-1">{o.store_emoji}</span>{o.store_name}
@@ -1104,34 +1145,84 @@ function RiderView({ userId }: { userId: string }) {
                         +${riderPayout(o.delivery_fee).toFixed(2)}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {o.items.length} items · {formatDistance(o.distance_miles, settings.units)}
                     </div>
-                    {mapsUrl && (
-                      <a
-                        href={mapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-1 inline-block text-[11px] font-semibold text-[var(--forest)] hover:underline"
-                      >
-                        Navigate in Google Maps ↗
-                      </a>
+
+                    {storePt && homePt && (
+                      <MiniMap
+                        from={leg === "to_store" ? HOME_BASE : storePt}
+                        to={legTo!}
+                        fromLabel={leg === "to_store" ? "Start" : "Store"}
+                        toLabel={leg === "to_store" ? `${o.store_emoji} ${o.store_name}` : "📍 Drop-off"}
+                        heightClass="h-32"
+                      />
+                    )}
+
+                    <ol className="text-[11px] text-foreground/90 space-y-1.5 rounded-xl bg-[var(--silver)]/50 border border-border p-3">
+                      <li className={`flex gap-2 ${o.status !== "accepted" ? "opacity-50 line-through" : ""}`}>
+                        <span className="font-bold text-[var(--forest)]">1.</span>
+                        <span className="flex-1">
+                          Bike to <b>{o.store_name}</b>
+                          <span className="block text-muted-foreground">
+                            {formatDistance(o.distance_miles, settings.units)} · ~{computeEta(o.distance_miles).min}–{computeEta(o.distance_miles).max} min
+                          </span>
+                        </span>
+                      </li>
+                      <li className={`flex gap-2 ${o.status !== "accepted" ? "" : "opacity-60"}`}>
+                        <span className="font-bold text-[var(--forest)]">2.</span>
+                        <span className="flex-1">
+                          Shop {o.items.length} item{o.items.length === 1 ? "" : "s"} & confirm pickup
+                        </span>
+                      </li>
+                      <li className={`flex gap-2 ${o.status === "picked_up" ? "" : "opacity-60"}`}>
+                        <span className="font-bold text-[var(--forest)]">3.</span>
+                        <span className="flex-1">
+                          Deliver to <b>{o.neighbor_label || "neighbor"}</b>
+                          {legFrom && legTo && leg === "to_neighbor" && (
+                            <span className="block text-muted-foreground">
+                              {formatDistance(legMiles, settings.units)} · ~{legEta.min}–{legEta.max} min
+                            </span>
+                          )}
+                        </span>
+                      </li>
+                    </ol>
+
+                    {(gMaps || aMaps) && (
+                      <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
+                        <span className="text-muted-foreground truncate">
+                          Next: {leg === "to_store" ? "ride to store" : "deliver to neighbor"}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {gMaps && (
+                            <a href={gMaps} target="_blank" rel="noreferrer" className="text-[var(--forest)] hover:underline">
+                              Google ↗
+                            </a>
+                          )}
+                          {gMaps && aMaps && <span className="text-muted-foreground">·</span>}
+                          {aMaps && (
+                            <a href={aMaps} target="_blank" rel="noreferrer" className="text-[var(--forest)] hover:underline">
+                              Apple ↗
+                            </a>
+                          )}
+                        </div>
+                      </div>
                     )}
 
                     {o.notes && (
-                      <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">📝 {o.notes}</div>
+                      <div className="text-[11px] text-muted-foreground line-clamp-2">📝 {o.notes}</div>
                     )}
                     {o.status === "accepted" ? (
                       <button
                         onClick={() => handlePickup(o)}
-                        className="mt-3 w-full text-xs font-semibold rounded-lg border border-border bg-white py-2 hover:bg-[var(--silver)] transition"
+                        className="w-full text-xs font-semibold rounded-lg border border-border bg-white py-2 hover:bg-[var(--silver)] transition"
                       >
                         Mark picked up
                       </button>
                     ) : (
                       <button
                         onClick={() => handleDeliver(o)}
-                        className="mt-3 w-full text-xs font-semibold rounded-lg border border-[var(--forest)] text-[var(--forest)] py-2 hover:bg-[var(--mint-soft)] transition"
+                        className="w-full text-xs font-semibold rounded-lg border border-[var(--forest)] text-[var(--forest)] py-2 hover:bg-[var(--mint-soft)] transition"
                       >
                         Mark delivered · release escrow
                       </button>
@@ -1273,6 +1364,7 @@ function Footer() {
 
 function ReviewModal({
   store,
+  storeCoord,
   items,
   itemsTotal,
   deliveryFee,
@@ -1285,6 +1377,7 @@ function ReviewModal({
   onConfirm,
 }: {
   store: Store;
+  storeCoord: Coord;
   items: Item[];
   itemsTotal: number;
   deliveryFee: number;
@@ -1299,7 +1392,8 @@ function ReviewModal({
   const { settings } = useSettings();
   const km = distanceMiles * MILES_TO_KM;
   const eta = computeEta(distanceMiles);
-  const mapsUrl = googleMapsDirectionsUrl(homeCoord, { lat: store.lat, lng: store.lng });
+  const gMaps = googleMapsDirectionsUrl(homeCoord, storeCoord);
+  const aMaps = appleMapsDirectionsUrl(homeCoord, storeCoord);
   return (
     <div className="fixed inset-0 z-50 bg-[var(--forest)]/40 backdrop-blur-sm grid place-items-end sm:place-items-center p-0 sm:p-6">
       <div className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl border border-border shadow-[var(--shadow-lift)] overflow-hidden max-h-[92vh] flex flex-col">
@@ -1316,15 +1410,16 @@ function ReviewModal({
 
         <div className="overflow-y-auto p-5 sm:p-6 space-y-4 text-sm">
           <div className="space-y-2">
-            <MiniMap from={homeCoord} to={{ lat: store.lat, lng: store.lng }} fromLabel="You" toLabel={store.emoji} />
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="block text-right text-[11px] font-semibold text-[var(--forest)] hover:underline"
-            >
-              Open route in Google Maps ↗
-            </a>
+            <MiniMap from={homeCoord} to={storeCoord} fromLabel="You" toLabel={`${store.emoji} ${store.name}`} />
+            <div className="flex items-center justify-end gap-3 text-[11px] font-semibold">
+              <a href={gMaps} target="_blank" rel="noreferrer" className="text-[var(--forest)] hover:underline">
+                Google Maps ↗
+              </a>
+              <span className="text-muted-foreground">·</span>
+              <a href={aMaps} target="_blank" rel="noreferrer" className="text-[var(--forest)] hover:underline">
+                Apple Maps ↗
+              </a>
+            </div>
           </div>
 
           <div>
