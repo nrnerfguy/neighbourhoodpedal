@@ -102,6 +102,11 @@ export function useLiveOrders(userId: string | null | undefined) {
               created_at: String(r.created_at ?? new Date().toISOString()),
               accepted_at: null,
               delivered_at: null,
+              neighbor_lat: null,
+              neighbor_lng: null,
+              neighbor_label: "",
+              store_lat: r.store_lat !== null && r.store_lat !== undefined ? Number(r.store_lat) : null,
+              store_lng: r.store_lng !== null && r.store_lng !== undefined ? Number(r.store_lng) : null,
             }))
         : [];
 
