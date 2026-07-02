@@ -173,6 +173,11 @@ export async function placeOrder(input: {
   platform_fee: number;
   total: number;
   notes: string;
+  neighbor_lat: number | null;
+  neighbor_lng: number | null;
+  neighbor_label: string;
+  store_lat: number | null;
+  store_lng: number | null;
 }) {
   const { data, error } = await supabase
     .from("orders")
