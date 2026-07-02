@@ -30,13 +30,18 @@ export type OrderRow = {
   created_at: string;
   accepted_at: string | null;
   delivered_at: string | null;
+  neighbor_lat: number | null;
+  neighbor_lng: number | null;
+  neighbor_label: string;
+  store_lat: number | null;
+  store_lng: number | null;
 };
 
 const SELECT_COLS =
-  "id,neighbor_id,rider_id,store_name,store_tag,store_emoji,distance_miles,items,items_total,delivery_fee,platform_fee,total,notes,status,created_at,accepted_at,delivered_at";
+  "id,neighbor_id,rider_id,store_name,store_tag,store_emoji,distance_miles,items,items_total,delivery_fee,platform_fee,total,notes,status,created_at,accepted_at,delivered_at,neighbor_lat,neighbor_lng,neighbor_label,store_lat,store_lng";
 
 const OPEN_GIG_COLS =
-  "order_id,store_name,store_tag,store_emoji,distance_miles,items_total,item_count,delivery_fee,platform_fee,total,status,created_at";
+  "order_id,store_name,store_tag,store_emoji,distance_miles,items_total,item_count,delivery_fee,platform_fee,total,status,created_at,store_lat,store_lng";
 
 function toRow(r: Record<string, unknown>): OrderRow {
   return {
