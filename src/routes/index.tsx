@@ -1115,12 +1115,28 @@ function RiderView({ userId }: { userId: string }) {
                   </div>
                 )}
                 {myActive.map((o) => {
-                  const store = STORES.find((s) => s.name === o.store_name);
-                  const mapsUrl = store
-                    ? googleMapsDirectionsUrl(null, { lat: store.lat, lng: store.lng })
+                  const hasStore = o.store_lat !== null && o.store_lng !== null;
+                  const hasHome = o.neighbor_lat !== null && o.neighbor_lng !== null;
+                  const storePt: Coord | null = hasStore
+                    ? { lat: o.store_lat as number, lng: o.store_lng as number }
                     : null;
+                  const homePt: Coord | null = hasHome
+                    ? { lat: o.neighbor_lat as number, lng: o.neighbor_lng as number }
+                    : null;
+                  const leg = o.status === "accepted" ? "to_store" : "to_neighbor";
+                  const legFrom: Coord | null = leg === "to_store" ? null : storePt;
+                  const legTo: Coord | null = leg === "to_store" ? storePt : homePt;
+                  const gMaps = legTo ? googleMapsDirectionsUrl(legFrom, legTo) : null;
+                  const aMaps = legTo ? appleMapsDirectionsUrl(legFrom, legTo) : null;
+                  const legMiles =
+                    leg === "to_store"
+                      ? o.distance_miles
+                      : legFrom && legTo
+                        ? haversineMiles(legFrom, legTo) * 0.621371
+                        : o.distance_miles;
+                  const legEta = computeEta(legMiles);
                   return (
-                  <div key={o.id} className="px-5 py-4 min-w-0">
+                  <div key={o.id} className="px-5 py-4 min-w-0 space-y-3">
                     <div className="flex items-center justify-between gap-2 min-w-0">
                       <div className="font-semibold text-sm truncate">
                         <span className="mr-1">{o.store_emoji}</span>{o.store_name}
@@ -1129,34 +1145,84 @@ function RiderView({ userId }: { userId: string }) {
                         +${riderPayout(o.delivery_fee).toFixed(2)}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {o.items.length} items · {formatDistance(o.distance_miles, settings.units)}
                     </div>
-                    {mapsUrl && (
-                      <a
-                        href={mapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-1 inline-block text-[11px] font-semibold text-[var(--forest)] hover:underline"
-                      >
-                        Navigate in Google Maps ↗
-                      </a>
+
+                    {storePt && homePt && (
+                      <MiniMap
+                        from={leg === "to_store" ? HOME_BASE : storePt}
+                        to={legTo!}
+                        fromLabel={leg === "to_store" ? "Start" : "Store"}
+                        toLabel={leg === "to_store" ? `${o.store_emoji} ${o.store_name}` : "📍 Drop-off"}
+                        heightClass="h-32"
+                      />
+                    )}
+
+                    <ol className="text-[11px] text-foreground/90 space-y-1.5 rounded-xl bg-[var(--silver)]/50 border border-border p-3">
+                      <li className={`flex gap-2 ${o.status !== "accepted" ? "opacity-50 line-through" : ""}`}>
+                        <span className="font-bold text-[var(--forest)]">1.</span>
+                        <span className="flex-1">
+                          Bike to <b>{o.store_name}</b>
+                          <span className="block text-muted-foreground">
+                            {formatDistance(o.distance_miles, settings.units)} · ~{computeEta(o.distance_miles).min}–{computeEta(o.distance_miles).max} min
+                          </span>
+                        </span>
+                      </li>
+                      <li className={`flex gap-2 ${o.status !== "accepted" ? "" : "opacity-60"}`}>
+                        <span className="font-bold text-[var(--forest)]">2.</span>
+                        <span className="flex-1">
+                          Shop {o.items.length} item{o.items.length === 1 ? "" : "s"} & confirm pickup
+                        </span>
+                      </li>
+                      <li className={`flex gap-2 ${o.status === "picked_up" ? "" : "opacity-60"}`}>
+                        <span className="font-bold text-[var(--forest)]">3.</span>
+                        <span className="flex-1">
+                          Deliver to <b>{o.neighbor_label || "neighbor"}</b>
+                          {legFrom && legTo && leg === "to_neighbor" && (
+                            <span className="block text-muted-foreground">
+                              {formatDistance(legMiles, settings.units)} · ~{legEta.min}–{legEta.max} min
+                            </span>
+                          )}
+                        </span>
+                      </li>
+                    </ol>
+
+                    {(gMaps || aMaps) && (
+                      <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
+                        <span className="text-muted-foreground truncate">
+                          Next: {leg === "to_store" ? "ride to store" : "deliver to neighbor"}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {gMaps && (
+                            <a href={gMaps} target="_blank" rel="noreferrer" className="text-[var(--forest)] hover:underline">
+                              Google ↗
+                            </a>
+                          )}
+                          {gMaps && aMaps && <span className="text-muted-foreground">·</span>}
+                          {aMaps && (
+                            <a href={aMaps} target="_blank" rel="noreferrer" className="text-[var(--forest)] hover:underline">
+                              Apple ↗
+                            </a>
+                          )}
+                        </div>
+                      </div>
                     )}
 
                     {o.notes && (
-                      <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">📝 {o.notes}</div>
+                      <div className="text-[11px] text-muted-foreground line-clamp-2">📝 {o.notes}</div>
                     )}
                     {o.status === "accepted" ? (
                       <button
                         onClick={() => handlePickup(o)}
-                        className="mt-3 w-full text-xs font-semibold rounded-lg border border-border bg-white py-2 hover:bg-[var(--silver)] transition"
+                        className="w-full text-xs font-semibold rounded-lg border border-border bg-white py-2 hover:bg-[var(--silver)] transition"
                       >
                         Mark picked up
                       </button>
                     ) : (
                       <button
                         onClick={() => handleDeliver(o)}
-                        className="mt-3 w-full text-xs font-semibold rounded-lg border border-[var(--forest)] text-[var(--forest)] py-2 hover:bg-[var(--mint-soft)] transition"
+                        className="w-full text-xs font-semibold rounded-lg border border-[var(--forest)] text-[var(--forest)] py-2 hover:bg-[var(--mint-soft)] transition"
                       >
                         Mark delivered · release escrow
                       </button>
