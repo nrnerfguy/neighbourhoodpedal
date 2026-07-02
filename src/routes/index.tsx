@@ -777,22 +777,33 @@ function PriceCard({
         <div className="space-y-2">
           <MiniMap
             from={homeCoord}
-            to={{ lat: store.lat, lng: store.lng }}
+            to={storeCoord}
             fromLabel={hasHomePin ? "You" : "Default"}
-            toLabel={store.emoji}
+            toLabel={`${store.emoji} ${store.name}`}
           />
-          <div className="flex items-center justify-between gap-2 text-[11px]">
-            <span className="text-muted-foreground truncate">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+            <span className="text-muted-foreground truncate min-w-0">
               {hasHomePin ? (homeLabel || "Your pinned location") : "Using neighborhood default — set your location in Settings"}
             </span>
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="shrink-0 font-semibold text-[var(--forest)] hover:underline"
-            >
-              Open in Google Maps ↗
-            </a>
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={gMaps}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[var(--forest)] hover:underline"
+              >
+                Google Maps ↗
+              </a>
+              <span className="text-muted-foreground">·</span>
+              <a
+                href={aMaps}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[var(--forest)] hover:underline"
+              >
+                Apple Maps ↗
+              </a>
+            </div>
           </div>
         </div>
 
