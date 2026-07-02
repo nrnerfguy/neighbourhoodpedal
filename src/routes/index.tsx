@@ -19,7 +19,7 @@ import {
   type OrderRow,
   type OrderItem,
 } from "@/lib/orders";
-import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, MiniMap, type Coord } from "@/lib/geo";
+import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, appleMapsDirectionsUrl, translateCoord, MiniMap, type Coord } from "@/lib/geo";
 
 
 export const Route = createFileRoute("/")({
