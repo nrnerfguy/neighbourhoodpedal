@@ -1297,6 +1297,7 @@ function Footer() {
 
 function ReviewModal({
   store,
+  storeCoord,
   items,
   itemsTotal,
   deliveryFee,
@@ -1309,6 +1310,7 @@ function ReviewModal({
   onConfirm,
 }: {
   store: Store;
+  storeCoord: Coord;
   items: Item[];
   itemsTotal: number;
   deliveryFee: number;
@@ -1323,7 +1325,8 @@ function ReviewModal({
   const { settings } = useSettings();
   const km = distanceMiles * MILES_TO_KM;
   const eta = computeEta(distanceMiles);
-  const mapsUrl = googleMapsDirectionsUrl(homeCoord, { lat: store.lat, lng: store.lng });
+  const gMaps = googleMapsDirectionsUrl(homeCoord, storeCoord);
+  const aMaps = appleMapsDirectionsUrl(homeCoord, storeCoord);
   return (
     <div className="fixed inset-0 z-50 bg-[var(--forest)]/40 backdrop-blur-sm grid place-items-end sm:place-items-center p-0 sm:p-6">
       <div className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl border border-border shadow-[var(--shadow-lift)] overflow-hidden max-h-[92vh] flex flex-col">
@@ -1340,15 +1343,16 @@ function ReviewModal({
 
         <div className="overflow-y-auto p-5 sm:p-6 space-y-4 text-sm">
           <div className="space-y-2">
-            <MiniMap from={homeCoord} to={{ lat: store.lat, lng: store.lng }} fromLabel="You" toLabel={store.emoji} />
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="block text-right text-[11px] font-semibold text-[var(--forest)] hover:underline"
-            >
-              Open route in Google Maps ↗
-            </a>
+            <MiniMap from={homeCoord} to={storeCoord} fromLabel="You" toLabel={`${store.emoji} ${store.name}`} />
+            <div className="flex items-center justify-end gap-3 text-[11px] font-semibold">
+              <a href={gMaps} target="_blank" rel="noreferrer" className="text-[var(--forest)] hover:underline">
+                Google Maps ↗
+              </a>
+              <span className="text-muted-foreground">·</span>
+              <a href={aMaps} target="_blank" rel="noreferrer" className="text-[var(--forest)] hover:underline">
+                Apple Maps ↗
+              </a>
+            </div>
           </div>
 
           <div>
