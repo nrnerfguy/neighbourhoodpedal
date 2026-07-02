@@ -669,6 +669,7 @@ function NeighborView({ userId }: { userId: string }) {
       {phase === "review" && (
         <ReviewModal
           store={activeStoreData}
+          storeCoord={storeCoord}
           items={items}
           itemsTotal={itemsTotal}
           deliveryFee={deliveryFee}
