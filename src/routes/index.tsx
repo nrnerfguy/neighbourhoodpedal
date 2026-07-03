@@ -1124,15 +1124,15 @@ function RiderView({ userId }: { userId: string }) {
                     ? { lat: o.neighbor_lat as number, lng: o.neighbor_lng as number }
                     : null;
                   const leg = o.status === "accepted" ? "to_store" : "to_neighbor";
-                  const legFrom: Coord | null = leg === "to_store" ? null : storePt;
+                  const legFrom: Coord | null = leg === "to_store" ? homePt : storePt;
                   const legTo: Coord | null = leg === "to_store" ? storePt : homePt;
                   const gMaps = legTo ? googleMapsDirectionsUrl(legFrom, legTo) : null;
                   const aMaps = legTo ? appleMapsDirectionsUrl(legFrom, legTo) : null;
                   const legMiles =
                     leg === "to_store"
-                      ? o.distance_miles
+                      ? legFrom && legTo ? haversineMiles(legFrom, legTo) : o.distance_miles
                       : legFrom && legTo
-                        ? haversineMiles(legFrom, legTo) * 0.621371
+                        ? haversineMiles(legFrom, legTo)
                         : o.distance_miles;
                   const legEta = computeEta(legMiles);
                   return (
@@ -1151,9 +1151,9 @@ function RiderView({ userId }: { userId: string }) {
 
                     {storePt && homePt && (
                       <MiniMap
-                        from={leg === "to_store" ? HOME_BASE : storePt}
+                        from={leg === "to_store" ? homePt : storePt}
                         to={legTo!}
-                        fromLabel={leg === "to_store" ? "Start" : "Store"}
+                        fromLabel={leg === "to_store" ? "Drop-off area" : "Store"}
                         toLabel={leg === "to_store" ? `${o.store_emoji} ${o.store_name}` : "📍 Drop-off"}
                         heightClass="h-32"
                       />
