@@ -19,7 +19,7 @@ import {
   type OrderRow,
   type OrderItem,
 } from "@/lib/orders";
-import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, appleMapsDirectionsUrl, translateCoord, MiniMap, type Coord } from "@/lib/geo";
+import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, appleMapsDirectionsUrl, translateCoord, MiniMap, geocodeAddress, type Coord } from "@/lib/geo";
 
 
 export const Route = createFileRoute("/")({
@@ -307,7 +307,24 @@ const STORES: Store[] = [
 
 /** Neighbor's chosen drop-off coord, or the neighborhood default if unset. */
 function useHomeCoord(): Coord {
-  const { settings } = useSettings();
+  const { settings, updateMany } = useSettings();
+  useEffect(() => {
+    if (settings.homeLat !== null || settings.homeLng !== null) return;
+    const typedAddress = settings.homeLabel.trim();
+    if (typedAddress.length < 5) return;
+    let cancelled = false;
+    geocodeAddress(typedAddress).then((result) => {
+      if (cancelled || !result) return;
+      updateMany({
+        homeLat: Number(result.coord.lat.toFixed(6)),
+        homeLng: Number(result.coord.lng.toFixed(6)),
+        homeLabel: result.label || typedAddress,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.homeLat, settings.homeLng, settings.homeLabel, updateMany]);
   return useMemo<Coord>(() => {
     if (settings.homeLat !== null && settings.homeLng !== null) {
       return { lat: settings.homeLat, lng: settings.homeLng };
