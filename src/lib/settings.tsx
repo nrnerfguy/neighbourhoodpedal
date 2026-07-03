@@ -46,6 +46,7 @@ function loadSettings(): Settings {
 type Ctx = {
   settings: Settings;
   update: <K extends keyof Settings>(k: K, v: Settings[K]) => boolean;
+  updateMany: (patch: Partial<Settings>) => boolean;
   reset: () => boolean;
 };
 
@@ -69,10 +70,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const update: Ctx["update"] = (k, v) => persist({ ...settings, [k]: v });
+  const update: Ctx["update"] = (k, v) => persist({ ...loadSettings(), [k]: v });
+  const updateMany: Ctx["updateMany"] = (patch) => persist({ ...loadSettings(), ...patch });
   const reset = () => persist(DEFAULTS);
 
-  return <SettingsContext.Provider value={{ settings, update, reset }}>{children}</SettingsContext.Provider>;
+  return <SettingsContext.Provider value={{ settings, update, updateMany, reset }}>{children}</SettingsContext.Provider>;
 }
 
 export function useSettings() {
