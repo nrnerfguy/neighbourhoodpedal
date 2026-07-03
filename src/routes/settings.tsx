@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useSettings, type Settings } from "@/lib/settings";
-import { reverseGeocode } from "@/lib/geo";
+import { geocodeAddress, reverseGeocode } from "@/lib/geo";
 import { IconFrame } from "./index";
 
 
@@ -189,9 +189,10 @@ function Toggle({
 }
 
 function LocationSection() {
-  const { settings, update } = useSettings();
+  const { settings, update, updateMany } = useSettings();
   const [label, setLabel] = useState(settings.homeLabel);
   const [locating, setLocating] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [addrLoading, setAddrLoading] = useState(false);
   const lastLookup = useRef<string>("");
@@ -221,9 +222,33 @@ function LocationSection() {
     };
   }, [settings.homeLat, settings.homeLng]);
 
-  const saveLabel = () => {
-    if (label === settings.homeLabel) return;
-    if (update("homeLabel", label)) toast.success("Address label saved", { duration: 1800 });
+  const saveTypedAddress = async () => {
+    const nextLabel = label.trim();
+    if (nextLabel.length < 5) {
+      toast.error("Enter a full street address so Pedal can place the pin");
+      return;
+    }
+    setGeocoding(true);
+    const result = await geocodeAddress(nextLabel);
+    setGeocoding(false);
+    if (!result) {
+      toast.error("Couldn't find that address. Try adding city and province/state.");
+      return;
+    }
+    const savedLabel = result.label || nextLabel;
+    const ok = updateMany({
+      homeLat: Number(result.coord.lat.toFixed(6)),
+      homeLng: Number(result.coord.lng.toFixed(6)),
+      homeLabel: savedLabel,
+    });
+    if (ok) {
+      setLabel(savedLabel);
+      setAddress(savedLabel);
+      lastLookup.current = `${result.coord.lat.toFixed(5)},${result.coord.lng.toFixed(5)}`;
+      toast.success(`Delivery address set: ${savedLabel}`, { duration: 2400 });
+    } else {
+      toast.error("Couldn't save — local storage unavailable", { duration: 2400 });
+    }
   };
 
   const clearLocation = () => {
@@ -246,11 +271,11 @@ function LocationSection() {
       async (pos) => {
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lng = Number(pos.coords.longitude.toFixed(6));
-        update("homeLat", lat);
-        update("homeLng", lng);
-        setLocating(false);
         setAddrLoading(true);
         const addr = await reverseGeocode(lat, lng);
+        updateMany({ homeLat: lat, homeLng: lng, homeLabel: addr || settings.homeLabel });
+        if (addr) setLabel(addr);
+        setLocating(false);
         lastLookup.current = `${lat.toFixed(5)},${lng.toFixed(5)}`;
         setAddress(addr);
         setAddrLoading(false);
@@ -269,14 +294,38 @@ function LocationSection() {
   return (
     <Section
       title="Delivery location"
-      subtitle="Riders need to know where to drop off. Use your device location or type an address label."
+      subtitle="Type your real drop-off address so routes and fees are based on the right city."
     >
       <div className="space-y-3">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">
+            Drop-off address
+          </label>
+          <div className="mt-1 flex flex-col sm:flex-row gap-2">
+            <input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void saveTypedAddress();
+              }}
+              placeholder="e.g. 12 8 Ave SW, Calgary, AB"
+              className="flex-1 min-w-0 rounded-xl border border-border bg-white focus:border-primary focus:ring-4 focus:ring-primary/15 outline-none px-3 py-2.5 text-sm transition"
+            />
+            <button
+              onClick={() => void saveTypedAddress()}
+              disabled={geocoding}
+              className="rounded-xl bg-primary text-[var(--forest)] font-semibold text-sm px-4 py-2.5 shadow-[var(--shadow-mint)] border border-[var(--forest)]/15 hover:brightness-105 active:scale-[0.99] transition disabled:opacity-60"
+            >
+              {geocoding ? "Finding…" : "Set address"}
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={useCurrentLocation}
             disabled={locating}
-            className="flex-1 rounded-xl bg-primary text-[var(--forest)] font-semibold text-sm px-4 py-2.5 shadow-[var(--shadow-mint)] border border-[var(--forest)]/15 hover:brightness-105 active:scale-[0.99] transition disabled:opacity-60"
+            className="flex-1 rounded-xl border border-border bg-white text-[var(--forest)] font-semibold text-sm px-4 py-2.5 hover:bg-[var(--mint-soft)] transition disabled:opacity-60"
           >
             {locating ? "Locating…" : hasCoords ? "Update to current location" : "Use my current location"}
           </button>
@@ -296,9 +345,9 @@ function LocationSection() {
               <div className="text-[var(--forest)] font-semibold truncate">
                 📍 {addrLoading ? "Looking up address…" : address || "Address not found — using pin"}
               </div>
-              <div className="text-muted-foreground tabular-nums mt-0.5">
-                {settings.homeLat!.toFixed(5)}, {settings.homeLng!.toFixed(5)}
-              </div>
+              {settings.homeLabel && settings.homeLabel !== address && (
+                <div className="text-muted-foreground mt-0.5 truncate">Shown to rider: {settings.homeLabel}</div>
+              )}
             </div>
           ) : (
             <span className="text-muted-foreground">
@@ -307,21 +356,9 @@ function LocationSection() {
           )}
         </div>
 
-        <div>
-          <label className="text-xs font-medium text-muted-foreground">
-            Address label (shown to your rider)
-          </label>
-          <input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            onBlur={saveLabel}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-            }}
-            placeholder="e.g. 12 Maple Ave, Apt 3B — buzzer #305"
-            className="mt-1 w-full rounded-xl border border-border bg-white focus:border-primary focus:ring-4 focus:ring-primary/15 outline-none px-3 py-2.5 text-sm transition"
-          />
-        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Apartment, buzzer, and delivery notes can still be added on the order screen.
+        </p>
       </div>
     </Section>
   );

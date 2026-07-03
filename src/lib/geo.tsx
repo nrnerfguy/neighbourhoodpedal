@@ -51,6 +51,119 @@ export function appleMapsDirectionsUrl(from: Coord | null, to: Coord): string {
   return `https://maps.apple.com/?${params.toString()}`;
 }
 
+export type GeocodedAddress = {
+  coord: Coord;
+  label: string;
+};
+
+export type RouteStep = {
+  instruction: string;
+  distanceMeters: number;
+  durationSeconds: number;
+};
+
+export type RouteDetails = {
+  coordinates: Coord[];
+  distanceMiles: number;
+  durationMinutes: number;
+  steps: RouteStep[];
+};
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatManeuver(type?: string, modifier?: string, name?: string) {
+  const road = name ? ` onto ${name}` : "";
+  if (type === "depart") return `Start${road}`;
+  if (type === "arrive") return "Arrive at destination";
+  if (type === "turn") return `Turn ${modifier || ""}${road}`.replace(/\s+/g, " ").trim();
+  if (type === "new name") return `Continue${road}`;
+  if (type === "roundabout") return `Take the roundabout${road}`;
+  if (type === "merge") return `Merge ${modifier || ""}${road}`.replace(/\s+/g, " ").trim();
+  return `Continue${road}`;
+}
+
+/** Geocode a typed address into a coord + readable label. */
+export async function geocodeAddress(address: string): Promise<GeocodedAddress | null> {
+  const query = address.trim();
+  if (query.length < 5) return null;
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) return null;
+    const data = (await res.json()) as Array<{
+      lat?: string;
+      lon?: string;
+      display_name?: string;
+      address?: Record<string, string>;
+    }>;
+    const first = data[0];
+    if (!first?.lat || !first.lon) return null;
+    const lat = Number(first.lat);
+    const lng = Number(first.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+    const a = first.address ?? {};
+    const house = a.house_number ? `${a.house_number} ` : "";
+    const road = a.road || a.pedestrian || a.footway || a.cycleway || "";
+    const city = a.city || a.town || a.village || a.suburb || a.neighbourhood || "";
+    const region = a.state_district || a.state || "";
+    const label = [`${house}${road}`.trim(), city, region].filter(Boolean).join(", ");
+    return { coord: { lat, lng }, label: label || first.display_name || query };
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch a real bike route polyline + steps. Falls back gracefully when unavailable. */
+export async function fetchBikeRoute(from: Coord, to: Coord): Promise<RouteDetails | null> {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/bike/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&steps=true`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      routes?: Array<{
+        distance?: number;
+        duration?: number;
+        geometry?: { coordinates?: Array<[number, number]> };
+        legs?: Array<{
+          steps?: Array<{
+            name?: string;
+            distance?: number;
+            duration?: number;
+            maneuver?: { type?: string; modifier?: string };
+          }>;
+        }>;
+      }>;
+    };
+    const route = data.routes?.[0];
+    const coords = route?.geometry?.coordinates;
+    if (!route || !coords?.length) return null;
+    const steps = (route.legs ?? [])
+      .flatMap((leg) => leg.steps ?? [])
+      .map((step) => ({
+        instruction: formatManeuver(step.maneuver?.type, step.maneuver?.modifier, step.name),
+        distanceMeters: Number(step.distance ?? 0),
+        durationSeconds: Number(step.duration ?? 0),
+      }))
+      .filter((step) => step.distanceMeters > 5 || step.instruction.includes("Arrive"));
+    return {
+      coordinates: coords.map(([lng, lat]) => ({ lat, lng })),
+      distanceMiles: Number(route.distance ?? 0) / 1609.344,
+      durationMinutes: Math.max(1, Math.round(Number(route.duration ?? 0) / 60)),
+      steps,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Reverse geocode a coord to a human-readable address via OpenStreetMap Nominatim. */
 export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   try {
@@ -134,15 +247,18 @@ export function MiniMap({
       const a = L.latLng(from.lat, from.lng);
       const b = L.latLng(to.lat, to.lng);
 
+      const safeFromLabel = escapeHtml(fromLabel);
+      const safeToLabel = escapeHtml(toLabel);
+
       const homeIcon = L.divIcon({
         className: "",
-        html: `<div style="background:#0b3d2e;color:#fff;font-size:10px;font-weight:700;padding:3px 6px;border-radius:9999px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);white-space:nowrap;">📍 ${fromLabel}</div>`,
+        html: `<div style="background:#0b3d2e;color:#fff;font-size:10px;font-weight:700;padding:3px 6px;border-radius:9999px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);white-space:nowrap;">📍 ${safeFromLabel}</div>`,
         iconSize: [1, 1],
         iconAnchor: [0, 0],
       });
       const storeIcon = L.divIcon({
         className: "",
-        html: `<div style="background:#7ef0c3;color:#0b3d2e;font-size:12px;font-weight:800;padding:3px 6px;border-radius:9999px;border:2px solid #0b3d2e;box-shadow:0 2px 6px rgba(0,0,0,0.25);white-space:nowrap;">${toLabel}</div>`,
+        html: `<div style="background:#7ef0c3;color:#0b3d2e;font-size:12px;font-weight:800;padding:3px 6px;border-radius:9999px;border:2px solid #0b3d2e;box-shadow:0 2px 6px rgba(0,0,0,0.25);white-space:nowrap;">${safeToLabel}</div>`,
         iconSize: [1, 1],
         iconAnchor: [0, 0],
       });
@@ -150,15 +266,25 @@ export function MiniMap({
       L.marker(a, { icon: homeIcon }).addTo(map);
       L.marker(b, { icon: storeIcon }).addTo(map);
 
-      L.polyline([a, b], {
-        color: "#0b3d2e",
-        weight: 3,
-        opacity: 0.85,
-        dashArray: "6 5",
-      }).addTo(map);
+      let routeLine: import("leaflet").Polyline | null = null;
+      const drawRoute = (coords: Coord[], dashed = false) => {
+        if (!map) return;
+        if (routeLine) routeLine.remove();
+        const latLngs = coords.map((c) => L.latLng(c.lat, c.lng));
+        routeLine = L.polyline(latLngs, {
+          color: "#0b3d2e",
+          weight: 4,
+          opacity: 0.9,
+          dashArray: dashed ? "6 5" : undefined,
+        }).addTo(map);
+        const bounds = L.latLngBounds(latLngs.length ? latLngs : [a, b]);
+        map.fitBounds(bounds, { padding: [24, 24], maxZoom: 15 });
+      };
 
-      const bounds = L.latLngBounds([a, b]);
-      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 15 });
+      drawRoute([from, to], true);
+      fetchBikeRoute(from, to).then((route) => {
+        if (!cancelled && route?.coordinates.length) drawRoute(route.coordinates);
+      });
 
       // Force a resize once layout settles (containers inside flex/grid).
       setTimeout(() => map && map.invalidateSize(), 60);
