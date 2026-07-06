@@ -20,6 +20,8 @@ import {
   type OrderItem,
 } from "@/lib/orders";
 import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, appleMapsDirectionsUrl, translateCoord, MiniMap, geocodeAddress, type Coord } from "@/lib/geo";
+import { useDbStores } from "@/lib/stores";
+import { useRoles } from "@/lib/roles";
 
 
 export const Route = createFileRoute("/")({
@@ -337,14 +339,20 @@ function useHomeCoord(): Coord {
 function NeighborView({ userId }: { userId: string }) {
   const { settings } = useSettings();
   const { orders } = useLiveOrders(userId);
+  const { stores: dbStores } = useDbStores();
+  const catalog: Store[] = (dbStores && dbStores.length > 0 ? dbStores : STORES);
   const [errand, setErrand] = useState("All");
-  const [activeStore, setActiveStore] = useState(STORES[0].name);
+  const [activeStore, setActiveStore] = useState(catalog[0].name);
   const [items, setItems] = useState<Item[]>([]);
   const [notes, setNotes] = useState("");
   const [phase, setPhase] = useState<Phase>("build");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
-  const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
+  useEffect(() => {
+    if (!catalog.find((s) => s.name === activeStore)) setActiveStore(catalog[0].name);
+  }, [catalog, activeStore]);
+
+  const activeStoreData = catalog.find((s) => s.name === activeStore) ?? catalog[0];
   const homeCoord = useHomeCoord();
   const storeCoord = useMemo<Coord>(
     () => translateCoord({ lat: activeStoreData.lat, lng: activeStoreData.lng }, homeCoord),
@@ -1025,6 +1033,25 @@ function RideOverlay() {
 function RiderView({ userId }: { userId: string }) {
   const { settings } = useSettings();
   const { orders, loading, refetch } = useLiveOrders(userId);
+  const { isRider, loading: rolesLoading } = useRoles(userId);
+
+  if (!rolesLoading && !isRider) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12 space-y-4">
+        <h2 className="text-3xl font-extrabold">Become a Pedal rider</h2>
+        <p className="text-muted-foreground">
+          Riders keep 90% of every delivery fee. Apply once, get verified, then start accepting local runs.
+        </p>
+        <Link
+          to="/rider-application"
+          className="inline-block rounded-2xl bg-primary text-[var(--forest)] font-bold px-6 py-3 shadow-[var(--shadow-mint)]"
+        >
+          Apply to ride
+        </Link>
+      </div>
+    );
+  }
+
 
   const openGigs = useMemo(
     () => orders.filter((o) => o.status === "open"),
