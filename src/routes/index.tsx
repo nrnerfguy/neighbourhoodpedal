@@ -1032,6 +1032,25 @@ function RideOverlay() {
 function RiderView({ userId }: { userId: string }) {
   const { settings } = useSettings();
   const { orders, loading, refetch } = useLiveOrders(userId);
+  const { isRider, loading: rolesLoading } = useRoles(userId);
+
+  if (!rolesLoading && !isRider) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12 space-y-4">
+        <h2 className="text-3xl font-extrabold">Become a Pedal rider</h2>
+        <p className="text-muted-foreground">
+          Riders keep 90% of every delivery fee. Apply once, get verified, then start accepting local runs.
+        </p>
+        <Link
+          to="/rider-application"
+          className="inline-block rounded-2xl bg-primary text-[var(--forest)] font-bold px-6 py-3 shadow-[var(--shadow-mint)]"
+        >
+          Apply to ride
+        </Link>
+      </div>
+    );
+  }
+
 
   const openGigs = useMemo(
     () => orders.filter((o) => o.status === "open"),
