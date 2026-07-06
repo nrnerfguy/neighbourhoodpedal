@@ -21,6 +21,7 @@ import {
 } from "@/lib/orders";
 import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, appleMapsDirectionsUrl, translateCoord, MiniMap, geocodeAddress, type Coord } from "@/lib/geo";
 import { useDbStores } from "@/lib/stores";
+import { useRoles } from "@/lib/roles";
 
 
 export const Route = createFileRoute("/")({
