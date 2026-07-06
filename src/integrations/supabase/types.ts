@@ -146,35 +146,237 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string
+          city: string
+          created_at: string
+          display_name: string
+          home_address: string
+          home_lat: number | null
+          home_lng: number | null
+          id: string
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string
+          city?: string
+          created_at?: string
+          display_name?: string
+          home_address?: string
+          home_lat?: number | null
+          home_lng?: number | null
+          id: string
+          phone?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string
+          city?: string
+          created_at?: string
+          display_name?: string
+          home_address?: string
+          home_lat?: number | null
+          home_lng?: number | null
+          id?: string
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rider_applications: {
+        Row: {
+          admin_notes: string
+          agreed_to_terms: boolean
+          bike_type: string
+          created_at: string
+          date_of_birth: string
+          id: string
+          id_photo_path: string
+          legal_name: string
+          phone: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          selfie_path: string
+          status: Database["public"]["Enums"]["rider_app_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string
+          agreed_to_terms?: boolean
+          bike_type?: string
+          created_at?: string
+          date_of_birth: string
+          id?: string
+          id_photo_path?: string
+          legal_name: string
+          phone: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selfie_path?: string
+          status?: Database["public"]["Enums"]["rider_app_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string
+          agreed_to_terms?: boolean
+          bike_type?: string
+          created_at?: string
+          date_of_birth?: string
+          id?: string
+          id_photo_path?: string
+          legal_name?: string
+          phone?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selfie_path?: string
+          status?: Database["public"]["Enums"]["rider_app_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      store_items: {
+        Row: {
+          category: string
+          created_at: string
+          emoji: string
+          id: string
+          in_stock: boolean
+          name: string
+          price: number
+          sort_order: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          emoji?: string
+          id?: string
+          in_stock?: boolean
+          name: string
+          price?: number
+          sort_order?: number
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          emoji?: string
+          id?: string
+          in_stock?: boolean
+          name?: string
+          price?: number
+          sort_order?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_items_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stores: {
+        Row: {
+          active: boolean
+          address: string
+          city: string
+          created_at: string
+          emoji: string
+          hours: string
+          id: string
+          lat: number | null
+          lng: number | null
+          name: string
+          sort_order: number
+          tag: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address?: string
+          city?: string
+          created_at?: string
+          emoji?: string
+          hours?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name: string
+          sort_order?: number
+          tag?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string
+          city?: string
+          created_at?: string
+          emoji?: string
+          hours?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          sort_order?: number
+          tag?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      get_open_orders: {
-        Args: never
-        Returns: {
-          created_at: string
-          delivery_fee: number
-          distance_miles: number
-          id: string
-          items_total: number
-          platform_fee: number
-          status: Database["public"]["Enums"]["order_status"]
-          store_emoji: string
-          store_name: string
-          store_tag: string
-          total: number
-        }[]
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
+      app_role: "admin" | "rider" | "neighbor"
       order_status:
         | "open"
         | "accepted"
         | "picked_up"
         | "delivered"
         | "cancelled"
+      rider_app_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -302,7 +504,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "rider", "neighbor"],
       order_status: ["open", "accepted", "picked_up", "delivered", "cancelled"],
+      rider_app_status: ["pending", "approved", "rejected"],
     },
   },
 } as const
