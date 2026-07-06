@@ -337,14 +337,20 @@ function useHomeCoord(): Coord {
 function NeighborView({ userId }: { userId: string }) {
   const { settings } = useSettings();
   const { orders } = useLiveOrders(userId);
+  const { stores: dbStores } = useDbStores();
+  const catalog: Store[] = (dbStores && dbStores.length > 0 ? dbStores : STORES);
   const [errand, setErrand] = useState("All");
-  const [activeStore, setActiveStore] = useState(STORES[0].name);
+  const [activeStore, setActiveStore] = useState(catalog[0].name);
   const [items, setItems] = useState<Item[]>([]);
   const [notes, setNotes] = useState("");
   const [phase, setPhase] = useState<Phase>("build");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
-  const activeStoreData = STORES.find((s) => s.name === activeStore) ?? STORES[0];
+  useEffect(() => {
+    if (!catalog.find((s) => s.name === activeStore)) setActiveStore(catalog[0].name);
+  }, [catalog, activeStore]);
+
+  const activeStoreData = catalog.find((s) => s.name === activeStore) ?? catalog[0];
   const homeCoord = useHomeCoord();
   const storeCoord = useMemo<Coord>(
     () => translateCoord({ lat: activeStoreData.lat, lng: activeStoreData.lng }, homeCoord),
