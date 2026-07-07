@@ -402,6 +402,12 @@ function NeighborView({ userId }: { userId: string }) {
   const cancelReview = () => setPhase("build");
 
   const placeOrder = async () => {
+    if (!isPhoneVerified(profile)) {
+      setShowVerify(true);
+      setPhase("review");
+      toast.error("Verify your phone before placing an order");
+      return;
+    }
     setPhase("loading");
     try {
       const orderItems: OrderItem[] = items.map((i) => ({
@@ -430,10 +436,17 @@ function NeighborView({ userId }: { userId: string }) {
       setPhase("tracking");
       toast.success("Order placed — waiting for a rider to accept.");
     } catch (err) {
-      toast.error((err as Error).message ?? "Couldn't place order");
+      const msg = (err as Error).message ?? "Couldn't place order";
+      if (msg.includes("phone_not_verified")) {
+        setShowVerify(true);
+        toast.error("Verify your phone before placing an order");
+      } else {
+        toast.error(msg);
+      }
       setPhase("review");
     }
   };
+
 
   const newOrder = () => {
     setActiveOrderId(null);
