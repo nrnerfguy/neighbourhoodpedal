@@ -526,55 +526,86 @@ function NeighborView({ userId }: { userId: string }) {
         <Card title="Your shopping list" subtitle={`Tap items from ${activeStoreData.name} to add — prices are set by the store`}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {activeStoreData.catalog.map((c) => {
-              const existing = items.find((i) => i.name === c.name);
-              const qty = existing?.qty ?? 0;
+              const hasSizes = c.sizes.length > 0;
+              const totalQty = items
+                .filter((i) => i.itemId === c.id)
+                .reduce((s, i) => s + i.qty, 0);
               return (
                 <div
-                  key={c.name}
+                  key={c.id}
                   className={`relative rounded-xl border bg-white p-3 min-w-0 transition ${
-                    qty > 0 ? "border-primary bg-[var(--mint-soft)]" : "border-border"
+                    totalQty > 0 ? "border-primary bg-[var(--mint-soft)]" : "border-border"
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => addCatalogItem(c)}
-                    className="block w-full text-left active:scale-[0.98] transition"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xl shrink-0" aria-hidden>{c.emoji}</span>
-                      <span className="text-sm font-medium truncate">{c.name}</span>
-                    </div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xl shrink-0" aria-hidden>{c.emoji}</span>
+                    <span className="text-sm font-medium truncate">{c.name}</span>
+                  </div>
+                  {!hasSizes && (
                     <div className="mt-1 text-xs tabular-nums text-muted-foreground">
                       ${c.price.toFixed(2)}
                     </div>
-                  </button>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    {qty > 0 ? (
-                      <div className="flex items-center gap-1 rounded-full border border-[var(--forest)]/20 bg-white p-0.5">
-                        <StepBtn label="−" onClick={() => existing && setQty(existing.id, qty - 1)} />
-                        <span className="min-w-6 text-center text-xs font-bold tabular-nums text-[var(--forest)]">
-                          {qty}
+                  )}
+                  {hasSizes ? (
+                    <div className="mt-2 space-y-1.5">
+                      {c.sizes.map((size) => {
+                        const line = items.find((i) => i.cartKey === `${c.id}::${size.label}`);
+                        const q = line?.qty ?? 0;
+                        return (
+                          <div key={size.label} className="flex items-center justify-between gap-2 text-[11px]">
+                            <div className="min-w-0 truncate">
+                              <span className="font-medium">{size.label}</span>
+                              <span className="text-muted-foreground tabular-nums ml-1">${size.price.toFixed(2)}</span>
+                            </div>
+                            {q > 0 ? (
+                              <div className="flex items-center gap-1 rounded-full border border-[var(--forest)]/20 bg-white p-0.5 shrink-0">
+                                <StepBtn label="−" onClick={() => line && setQty(line.id, q - 1)} />
+                                <span className="min-w-5 text-center text-[11px] font-bold tabular-nums text-[var(--forest)]">{q}</span>
+                                <StepBtn label="+" onClick={() => addCatalogItem(c, size)} />
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => addCatalogItem(c, size)}
+                                className="shrink-0 text-[11px] font-bold text-[var(--forest)] hover:underline"
+                              >
+                                + Add
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      {totalQty > 0 ? (
+                        <div className="flex items-center gap-1 rounded-full border border-[var(--forest)]/20 bg-white p-0.5">
+                          <StepBtn label="−" onClick={() => {
+                            const line = items.find((i) => i.cartKey === c.id);
+                            if (line) setQty(line.id, line.qty - 1);
+                          }} />
+                          <span className="min-w-6 text-center text-xs font-bold tabular-nums text-[var(--forest)]">{totalQty}</span>
+                          <StepBtn label="+" onClick={() => addCatalogItem(c)} />
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => addCatalogItem(c)}
+                          className="text-[11px] font-bold text-[var(--forest)] hover:underline"
+                        >
+                          + Add
+                        </button>
+                      )}
+                      {totalQty > 0 && (
+                        <span className="text-[11px] tabular-nums font-semibold text-[var(--forest)]">
+                          ${(c.price * totalQty).toFixed(2)}
                         </span>
-                        <StepBtn label="+" onClick={() => addCatalogItem(c)} />
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => addCatalogItem(c)}
-                        className="text-[11px] font-bold text-[var(--forest)] hover:underline"
-                      >
-                        + Add
-                      </button>
-                    )}
-                    {qty > 0 && (
-                      <span className="text-[11px] tabular-nums font-semibold text-[var(--forest)]">
-                        ${(c.price * qty).toFixed(2)}
-                      </span>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
+
           <ul className="mt-4 divide-y divide-border">
             {items.map((it) => (
               <li key={it.id} className="grid grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 gap-y-2 py-2.5 min-w-0">
