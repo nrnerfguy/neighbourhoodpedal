@@ -207,8 +207,19 @@ export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" })
 
 /* ---------------- Neighbor View ---------------- */
 
-type CatalogItem = { name: string; price: number; emoji: string };
-type Item = { id: string; name: string; price: number; emoji: string; qty: number; done: boolean };
+type Store = DbStore;
+type CatalogItem = DbCatalogItem;
+type Item = {
+  id: string;         // unique cart line id
+  cartKey: string;    // dedup key (itemId + size)
+  itemId: string;     // catalog item id
+  name: string;       // display name (includes size)
+  sizeLabel: string;  // "" if no size
+  price: number;
+  emoji: string;
+  qty: number;
+  done: boolean;
+};
 type Phase = "build" | "review" | "loading" | "tracking";
 const ACTIVE_ORDER_KEY = "pedal.activeOrderId.v1";
 
@@ -234,9 +245,6 @@ function orderToStep(status: OrderRow["status"] | undefined): number {
   }
 }
 
-
-
-
 /** ETA window assuming ~12 mph bike, round-trip + ~6 min shopping. */
 function computeEta(miles: number): { min: number; max: number } {
   const rideMin = (miles * 2 / 12) * 60;
@@ -244,72 +252,8 @@ function computeEta(miles: number): { min: number; max: number } {
   return { min: Math.max(8, center - 4), max: center + 6 };
 }
 
+const ERRAND_TYPES = ["All", "Grocery", "Convenience", "Coffee", "Pizza"];
 
-const ERRAND_TYPES = ["All", "Grocery", "Pharmacy", "Bakery", "Custom Errand"];
-type Store = {
-  name: string;
-  tag: string;
-  miles: number; // fallback distance from HOME_BASE, kept for legacy display
-  lat: number;
-  lng: number;
-  emoji: string;
-  catalog: CatalogItem[];
-};
-// Store coordinates are placed around HOME_BASE (see src/lib/geo.tsx).
-// Roughly: 1 deg lat ≈ 69 mi; 1 deg lng at 43.6°N ≈ 50 mi.
-const STORES: Store[] = [
-  {
-    name: "Community Grocer", tag: "Fresh produce", miles: 0.4, emoji: "🥬",
-    lat: 43.6538, lng: -79.3903,
-    catalog: [
-      { name: "1L Organic Milk", price: 4.5, emoji: "🥛" },
-      { name: "Eggs (dozen)", price: 5.75, emoji: "🥚" },
-      { name: "Bananas (bunch)", price: 2.25, emoji: "🍌" },
-      { name: "Avocado", price: 1.5, emoji: "🥑" },
-      { name: "Tomatoes (lb)", price: 2.8, emoji: "🍅" },
-      { name: "Spinach bag", price: 3.25, emoji: "🥬" },
-    ],
-  },
-  {
-    name: "Maple St. Pharmacy", tag: "OTC & scripts", miles: 0.6, emoji: "💊",
-    lat: 43.6580, lng: -79.3765,
-    catalog: [
-      { name: "Ibuprofen 200mg", price: 7.99, emoji: "💊" },
-      { name: "Bandages pack", price: 4.5, emoji: "🩹" },
-      { name: "Vitamin C", price: 9.25, emoji: "🍊" },
-      { name: "Cough syrup", price: 11.0, emoji: "🧴" },
-    ],
-  },
-  {
-    name: "Sunrise Bakery", tag: "Bread & pastries", miles: 0.3, emoji: "🥐",
-    lat: 43.6510, lng: -79.3865,
-    catalog: [
-      { name: "Sourdough loaf", price: 6.0, emoji: "🍞" },
-      { name: "Butter croissant", price: 3.5, emoji: "🥐" },
-      { name: "Blueberry muffin", price: 3.0, emoji: "🧁" },
-      { name: "Baguette", price: 4.25, emoji: "🥖" },
-    ],
-  },
-  {
-    name: "Corner Hardware", tag: "Tools & odds", miles: 0.8, emoji: "🔧",
-    lat: 43.6607, lng: -79.3721,
-    catalog: [
-      { name: "AA batteries (8pk)", price: 8.5, emoji: "🔋" },
-      { name: "Duct tape", price: 6.0, emoji: "🩶" },
-      { name: "Lightbulb LED", price: 4.75, emoji: "💡" },
-    ],
-  },
-  {
-    name: "Green Leaf Market", tag: "Organic", miles: 1.1, emoji: "🌿",
-    lat: 43.6685, lng: -79.3705,
-    catalog: [
-      { name: "Oat milk", price: 5.25, emoji: "🥛" },
-      { name: "Granola jar", price: 8.0, emoji: "🥣" },
-      { name: "Kombucha", price: 4.5, emoji: "🍶" },
-      { name: "Mixed berries", price: 6.5, emoji: "🫐" },
-    ],
-  },
-];
 
 /** Neighbor's chosen drop-off coord, or the neighborhood default if unset. */
 function useHomeCoord(): Coord {
