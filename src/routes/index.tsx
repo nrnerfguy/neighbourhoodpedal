@@ -284,17 +284,22 @@ function useHomeCoord(): Coord {
 }
 
 
+const EMPTY_STORE: Store = { id: "", name: "—", tag: "", miles: 0, lat: HOME_BASE.lat, lng: HOME_BASE.lng, emoji: "🛒", address: "", hours: "", logoUrl: "", catalog: [] };
+
 function NeighborView({ userId }: { userId: string }) {
   const { settings } = useSettings();
   const { orders } = useLiveOrders(userId);
-  const { stores: dbStores } = useDbStores();
-  const catalog: Store[] = (dbStores && dbStores.length > 0 ? dbStores : STORES);
+  const { stores: dbStores, loading: storesLoading } = useDbStores();
+  const { profile, refetch: refetchProfile } = useProfile(userId);
+  const [showVerify, setShowVerify] = useState(false);
+  const catalog: Store[] = dbStores && dbStores.length > 0 ? dbStores : [EMPTY_STORE];
   const [errand, setErrand] = useState("All");
-  const [activeStore, setActiveStore] = useState(catalog[0].name);
+  const [activeStore, setActiveStore] = useState<string>(catalog[0].name);
   const [items, setItems] = useState<Item[]>([]);
   const [notes, setNotes] = useState("");
   const [phase, setPhase] = useState<Phase>("build");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (!catalog.find((s) => s.name === activeStore)) setActiveStore(catalog[0].name);
@@ -357,16 +362,33 @@ function NeighborView({ userId }: { userId: string }) {
     }
   }, [activeOrderId, latestOngoingOrder, userId]);
 
-  const addCatalogItem = (c: CatalogItem) => {
+  const addCatalogItem = (c: CatalogItem, size?: ItemSize) => {
+    const cartKey = size ? `${c.id}::${size.label}` : c.id;
+    const price = size?.price ?? c.price;
+    const displayName = size ? `${c.name} — ${size.label}` : c.name;
     setItems((p) => {
-      const existing = p.find((i) => i.name === c.name);
+      const existing = p.find((i) => i.cartKey === cartKey);
       if (existing) return p.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + 1 } : i));
-      return [...p, { id: crypto.randomUUID(), name: c.name, price: c.price, emoji: c.emoji, qty: 1, done: false }];
+      return [
+        ...p,
+        {
+          id: crypto.randomUUID(),
+          cartKey,
+          itemId: c.id,
+          name: displayName,
+          sizeLabel: size?.label ?? "",
+          price,
+          emoji: c.emoji,
+          qty: 1,
+          done: false,
+        },
+      ];
     });
   };
   const setQty = (id: string, qty: number) => {
     setItems((p) => (qty <= 0 ? p.filter((i) => i.id !== id) : p.map((i) => (i.id === id ? { ...i, qty } : i))));
   };
+
 
   const selectStore = (storeName: string) => {
     if (storeName === activeStore) return;
