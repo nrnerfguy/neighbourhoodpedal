@@ -20,8 +20,12 @@ import {
   type OrderItem,
 } from "@/lib/orders";
 import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, appleMapsDirectionsUrl, translateCoord, MiniMap, geocodeAddress, type Coord } from "@/lib/geo";
-import { useDbStores } from "@/lib/stores";
+import { useDbStores, type Store as DbStore, type CatalogItem as DbCatalogItem, type ItemSize } from "@/lib/stores";
 import { useRoles } from "@/lib/roles";
+import { useProfile, isPhoneVerified } from "@/lib/profile";
+import { StoreLogo } from "@/components/StoreLogo";
+import { VerifyPhoneModal } from "@/components/VerifyPhoneModal";
+import { GigFilters, useGigFilters, type GigFilterState } from "@/components/GigFilters";
 
 
 export const Route = createFileRoute("/")({
