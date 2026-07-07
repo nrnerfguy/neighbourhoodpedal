@@ -732,10 +732,16 @@ function NeighborView({ userId }: { userId: string }) {
         />
       )}
 
-
+      <VerifyPhoneModal
+        open={showVerify}
+        onOpenChange={setShowVerify}
+        initialPhone={profile?.phone_e164 || profile?.phone || ""}
+        onVerified={() => { void refetchProfile(); }}
+      />
     </div>
   );
 }
+
 
 function StepBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
