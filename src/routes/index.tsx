@@ -485,32 +485,42 @@ function NeighborView({ userId }: { userId: string }) {
         </div>
 
         {/* Stores carousel */}
-        <Card title="Pick a local store" subtitle="Pre-verified neighborhood shops">
+        <Card title="Pick a local store" subtitle={storesLoading ? "Loading nearby shops…" : "Real Tuscany-area shops"}>
           <div className="-mx-2 overflow-x-auto overflow-y-visible">
             <div className="flex gap-3 px-2 py-2 snap-x">
-              {STORES.map((s) => {
+              {catalog.map((s) => {
                 const active = activeStore === s.name;
                 return (
                   <button
-                    key={s.name}
+                    key={s.id || s.name}
                     onClick={() => selectStore(s.name)}
-                    className={`snap-start shrink-0 w-40 sm:w-44 text-left rounded-2xl border bg-white p-3 transition shadow-[var(--shadow-soft)] hover:-translate-y-0.5 ${
+                    className={`snap-start shrink-0 w-44 sm:w-48 text-left rounded-2xl border bg-white p-3 transition shadow-[var(--shadow-soft)] hover:-translate-y-0.5 ${
                       active ? "border-primary ring-2 ring-primary/30" : "border-border"
                     }`}
                   >
-                    <div className="h-20 rounded-xl bg-gradient-to-br from-[var(--mint-soft)] to-white border border-border flex items-center justify-center text-3xl">
-                      {s.emoji}
+                    <div className="h-20 rounded-xl bg-gradient-to-br from-[var(--mint-soft)] to-white border border-border flex items-center justify-center p-2 gap-2">
+                      <StoreLogo logoUrl={s.logoUrl} emoji={s.emoji} name={s.name} size="lg" />
                     </div>
-                    <div className="mt-2.5 font-semibold text-sm truncate">{s.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {s.tag} · {formatDistance(s.miles, settings.units)}
+                    <div className="mt-2.5 flex items-center gap-2 min-w-0">
+                      <StoreLogo logoUrl={s.logoUrl} emoji={s.emoji} name={s.name} size="sm" />
+                      <span className="font-semibold text-sm truncate">{s.name}</span>
                     </div>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">
+                      {s.tag}
+                    </div>
+                    {s.hours && (
+                      <div className="text-[10px] text-muted-foreground/80 truncate">🕒 {s.hours}</div>
+                    )}
                   </button>
                 );
               })}
+              {!storesLoading && catalog.length === 1 && catalog[0].id === "" && (
+                <div className="text-xs text-muted-foreground p-4">No stores available in your area yet.</div>
+              )}
             </div>
           </div>
         </Card>
+
 
         {/* Shopping list */}
         <Card title="Your shopping list" subtitle={`Tap items from ${activeStoreData.name} to add — prices are set by the store`}>
