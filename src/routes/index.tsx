@@ -20,8 +20,12 @@ import {
   type OrderItem,
 } from "@/lib/orders";
 import { HOME_BASE, haversineMiles, googleMapsDirectionsUrl, appleMapsDirectionsUrl, translateCoord, MiniMap, geocodeAddress, type Coord } from "@/lib/geo";
-import { useDbStores } from "@/lib/stores";
+import { useDbStores, type Store as DbStore, type CatalogItem as DbCatalogItem, type ItemSize } from "@/lib/stores";
 import { useRoles } from "@/lib/roles";
+import { useProfile, isPhoneVerified } from "@/lib/profile";
+import { StoreLogo } from "@/components/StoreLogo";
+import { VerifyPhoneModal } from "@/components/VerifyPhoneModal";
+import { GigFilters, useGigFilters, type GigFilterState } from "@/components/GigFilters";
 
 
 export const Route = createFileRoute("/")({
@@ -203,8 +207,19 @@ export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" })
 
 /* ---------------- Neighbor View ---------------- */
 
-type CatalogItem = { name: string; price: number; emoji: string };
-type Item = { id: string; name: string; price: number; emoji: string; qty: number; done: boolean };
+type Store = DbStore;
+type CatalogItem = DbCatalogItem;
+type Item = {
+  id: string;         // unique cart line id
+  cartKey: string;    // dedup key (itemId + size)
+  itemId: string;     // catalog item id
+  name: string;       // display name (includes size)
+  sizeLabel: string;  // "" if no size
+  price: number;
+  emoji: string;
+  qty: number;
+  done: boolean;
+};
 type Phase = "build" | "review" | "loading" | "tracking";
 const ACTIVE_ORDER_KEY = "pedal.activeOrderId.v1";
 
@@ -230,9 +245,6 @@ function orderToStep(status: OrderRow["status"] | undefined): number {
   }
 }
 
-
-
-
 /** ETA window assuming ~12 mph bike, round-trip + ~6 min shopping. */
 function computeEta(miles: number): { min: number; max: number } {
   const rideMin = (miles * 2 / 12) * 60;
@@ -240,72 +252,8 @@ function computeEta(miles: number): { min: number; max: number } {
   return { min: Math.max(8, center - 4), max: center + 6 };
 }
 
+const ERRAND_TYPES = ["All", "Grocery", "Convenience", "Coffee", "Pizza"];
 
-const ERRAND_TYPES = ["All", "Grocery", "Pharmacy", "Bakery", "Custom Errand"];
-type Store = {
-  name: string;
-  tag: string;
-  miles: number; // fallback distance from HOME_BASE, kept for legacy display
-  lat: number;
-  lng: number;
-  emoji: string;
-  catalog: CatalogItem[];
-};
-// Store coordinates are placed around HOME_BASE (see src/lib/geo.tsx).
-// Roughly: 1 deg lat ≈ 69 mi; 1 deg lng at 43.6°N ≈ 50 mi.
-const STORES: Store[] = [
-  {
-    name: "Community Grocer", tag: "Fresh produce", miles: 0.4, emoji: "🥬",
-    lat: 43.6538, lng: -79.3903,
-    catalog: [
-      { name: "1L Organic Milk", price: 4.5, emoji: "🥛" },
-      { name: "Eggs (dozen)", price: 5.75, emoji: "🥚" },
-      { name: "Bananas (bunch)", price: 2.25, emoji: "🍌" },
-      { name: "Avocado", price: 1.5, emoji: "🥑" },
-      { name: "Tomatoes (lb)", price: 2.8, emoji: "🍅" },
-      { name: "Spinach bag", price: 3.25, emoji: "🥬" },
-    ],
-  },
-  {
-    name: "Maple St. Pharmacy", tag: "OTC & scripts", miles: 0.6, emoji: "💊",
-    lat: 43.6580, lng: -79.3765,
-    catalog: [
-      { name: "Ibuprofen 200mg", price: 7.99, emoji: "💊" },
-      { name: "Bandages pack", price: 4.5, emoji: "🩹" },
-      { name: "Vitamin C", price: 9.25, emoji: "🍊" },
-      { name: "Cough syrup", price: 11.0, emoji: "🧴" },
-    ],
-  },
-  {
-    name: "Sunrise Bakery", tag: "Bread & pastries", miles: 0.3, emoji: "🥐",
-    lat: 43.6510, lng: -79.3865,
-    catalog: [
-      { name: "Sourdough loaf", price: 6.0, emoji: "🍞" },
-      { name: "Butter croissant", price: 3.5, emoji: "🥐" },
-      { name: "Blueberry muffin", price: 3.0, emoji: "🧁" },
-      { name: "Baguette", price: 4.25, emoji: "🥖" },
-    ],
-  },
-  {
-    name: "Corner Hardware", tag: "Tools & odds", miles: 0.8, emoji: "🔧",
-    lat: 43.6607, lng: -79.3721,
-    catalog: [
-      { name: "AA batteries (8pk)", price: 8.5, emoji: "🔋" },
-      { name: "Duct tape", price: 6.0, emoji: "🩶" },
-      { name: "Lightbulb LED", price: 4.75, emoji: "💡" },
-    ],
-  },
-  {
-    name: "Green Leaf Market", tag: "Organic", miles: 1.1, emoji: "🌿",
-    lat: 43.6685, lng: -79.3705,
-    catalog: [
-      { name: "Oat milk", price: 5.25, emoji: "🥛" },
-      { name: "Granola jar", price: 8.0, emoji: "🥣" },
-      { name: "Kombucha", price: 4.5, emoji: "🍶" },
-      { name: "Mixed berries", price: 6.5, emoji: "🫐" },
-    ],
-  },
-];
 
 /** Neighbor's chosen drop-off coord, or the neighborhood default if unset. */
 function useHomeCoord(): Coord {
@@ -336,17 +284,22 @@ function useHomeCoord(): Coord {
 }
 
 
+const EMPTY_STORE: Store = { id: "", name: "—", tag: "", miles: 0, lat: HOME_BASE.lat, lng: HOME_BASE.lng, emoji: "🛒", address: "", hours: "", logoUrl: "", catalog: [] };
+
 function NeighborView({ userId }: { userId: string }) {
   const { settings } = useSettings();
   const { orders } = useLiveOrders(userId);
-  const { stores: dbStores } = useDbStores();
-  const catalog: Store[] = (dbStores && dbStores.length > 0 ? dbStores : STORES);
+  const { stores: dbStores, loading: storesLoading } = useDbStores();
+  const { profile, refetch: refetchProfile } = useProfile(userId);
+  const [showVerify, setShowVerify] = useState(false);
+  const catalog: Store[] = dbStores && dbStores.length > 0 ? dbStores : [EMPTY_STORE];
   const [errand, setErrand] = useState("All");
-  const [activeStore, setActiveStore] = useState(catalog[0].name);
+  const [activeStore, setActiveStore] = useState<string>(catalog[0].name);
   const [items, setItems] = useState<Item[]>([]);
   const [notes, setNotes] = useState("");
   const [phase, setPhase] = useState<Phase>("build");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (!catalog.find((s) => s.name === activeStore)) setActiveStore(catalog[0].name);
@@ -409,16 +362,33 @@ function NeighborView({ userId }: { userId: string }) {
     }
   }, [activeOrderId, latestOngoingOrder, userId]);
 
-  const addCatalogItem = (c: CatalogItem) => {
+  const addCatalogItem = (c: CatalogItem, size?: ItemSize) => {
+    const cartKey = size ? `${c.id}::${size.label}` : c.id;
+    const price = size?.price ?? c.price;
+    const displayName = size ? `${c.name} — ${size.label}` : c.name;
     setItems((p) => {
-      const existing = p.find((i) => i.name === c.name);
+      const existing = p.find((i) => i.cartKey === cartKey);
       if (existing) return p.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + 1 } : i));
-      return [...p, { id: crypto.randomUUID(), name: c.name, price: c.price, emoji: c.emoji, qty: 1, done: false }];
+      return [
+        ...p,
+        {
+          id: crypto.randomUUID(),
+          cartKey,
+          itemId: c.id,
+          name: displayName,
+          sizeLabel: size?.label ?? "",
+          price,
+          emoji: c.emoji,
+          qty: 1,
+          done: false,
+        },
+      ];
     });
   };
   const setQty = (id: string, qty: number) => {
     setItems((p) => (qty <= 0 ? p.filter((i) => i.id !== id) : p.map((i) => (i.id === id ? { ...i, qty } : i))));
   };
+
 
   const selectStore = (storeName: string) => {
     if (storeName === activeStore) return;
@@ -432,6 +402,12 @@ function NeighborView({ userId }: { userId: string }) {
   const cancelReview = () => setPhase("build");
 
   const placeOrder = async () => {
+    if (!isPhoneVerified(profile)) {
+      setShowVerify(true);
+      setPhase("review");
+      toast.error("Verify your phone before placing an order");
+      return;
+    }
     setPhase("loading");
     try {
       const orderItems: OrderItem[] = items.map((i) => ({
@@ -460,10 +436,17 @@ function NeighborView({ userId }: { userId: string }) {
       setPhase("tracking");
       toast.success("Order placed — waiting for a rider to accept.");
     } catch (err) {
-      toast.error((err as Error).message ?? "Couldn't place order");
+      const msg = (err as Error).message ?? "Couldn't place order";
+      if (msg.includes("phone_not_verified")) {
+        setShowVerify(true);
+        toast.error("Verify your phone before placing an order");
+      } else {
+        toast.error(msg);
+      }
       setPhase("review");
     }
   };
+
 
   const newOrder = () => {
     setActiveOrderId(null);
@@ -515,86 +498,127 @@ function NeighborView({ userId }: { userId: string }) {
         </div>
 
         {/* Stores carousel */}
-        <Card title="Pick a local store" subtitle="Pre-verified neighborhood shops">
+        <Card title="Pick a local store" subtitle={storesLoading ? "Loading nearby shops…" : "Real Tuscany-area shops"}>
           <div className="-mx-2 overflow-x-auto overflow-y-visible">
             <div className="flex gap-3 px-2 py-2 snap-x">
-              {STORES.map((s) => {
+              {catalog.map((s) => {
                 const active = activeStore === s.name;
                 return (
                   <button
-                    key={s.name}
+                    key={s.id || s.name}
                     onClick={() => selectStore(s.name)}
-                    className={`snap-start shrink-0 w-40 sm:w-44 text-left rounded-2xl border bg-white p-3 transition shadow-[var(--shadow-soft)] hover:-translate-y-0.5 ${
+                    className={`snap-start shrink-0 w-44 sm:w-48 text-left rounded-2xl border bg-white p-3 transition shadow-[var(--shadow-soft)] hover:-translate-y-0.5 ${
                       active ? "border-primary ring-2 ring-primary/30" : "border-border"
                     }`}
                   >
-                    <div className="h-20 rounded-xl bg-gradient-to-br from-[var(--mint-soft)] to-white border border-border flex items-center justify-center text-3xl">
-                      {s.emoji}
+                    <div className="h-20 rounded-xl bg-gradient-to-br from-[var(--mint-soft)] to-white border border-border flex items-center justify-center p-2 gap-2">
+                      <StoreLogo logoUrl={s.logoUrl} emoji={s.emoji} name={s.name} size="lg" />
                     </div>
-                    <div className="mt-2.5 font-semibold text-sm truncate">{s.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {s.tag} · {formatDistance(s.miles, settings.units)}
+                    <div className="mt-2.5 flex items-center gap-2 min-w-0">
+                      <StoreLogo logoUrl={s.logoUrl} emoji={s.emoji} name={s.name} size="sm" />
+                      <span className="font-semibold text-sm truncate">{s.name}</span>
                     </div>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">
+                      {s.tag}
+                    </div>
+                    {s.hours && (
+                      <div className="text-[10px] text-muted-foreground/80 truncate">🕒 {s.hours}</div>
+                    )}
                   </button>
                 );
               })}
+              {!storesLoading && catalog.length === 1 && catalog[0].id === "" && (
+                <div className="text-xs text-muted-foreground p-4">No stores available in your area yet.</div>
+              )}
             </div>
           </div>
         </Card>
+
 
         {/* Shopping list */}
         <Card title="Your shopping list" subtitle={`Tap items from ${activeStoreData.name} to add — prices are set by the store`}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {activeStoreData.catalog.map((c) => {
-              const existing = items.find((i) => i.name === c.name);
-              const qty = existing?.qty ?? 0;
+              const hasSizes = c.sizes.length > 0;
+              const totalQty = items
+                .filter((i) => i.itemId === c.id)
+                .reduce((s, i) => s + i.qty, 0);
               return (
                 <div
-                  key={c.name}
+                  key={c.id}
                   className={`relative rounded-xl border bg-white p-3 min-w-0 transition ${
-                    qty > 0 ? "border-primary bg-[var(--mint-soft)]" : "border-border"
+                    totalQty > 0 ? "border-primary bg-[var(--mint-soft)]" : "border-border"
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => addCatalogItem(c)}
-                    className="block w-full text-left active:scale-[0.98] transition"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xl shrink-0" aria-hidden>{c.emoji}</span>
-                      <span className="text-sm font-medium truncate">{c.name}</span>
-                    </div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xl shrink-0" aria-hidden>{c.emoji}</span>
+                    <span className="text-sm font-medium truncate">{c.name}</span>
+                  </div>
+                  {!hasSizes && (
                     <div className="mt-1 text-xs tabular-nums text-muted-foreground">
                       ${c.price.toFixed(2)}
                     </div>
-                  </button>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    {qty > 0 ? (
-                      <div className="flex items-center gap-1 rounded-full border border-[var(--forest)]/20 bg-white p-0.5">
-                        <StepBtn label="−" onClick={() => existing && setQty(existing.id, qty - 1)} />
-                        <span className="min-w-6 text-center text-xs font-bold tabular-nums text-[var(--forest)]">
-                          {qty}
+                  )}
+                  {hasSizes ? (
+                    <div className="mt-2 space-y-1.5">
+                      {c.sizes.map((size) => {
+                        const line = items.find((i) => i.cartKey === `${c.id}::${size.label}`);
+                        const q = line?.qty ?? 0;
+                        return (
+                          <div key={size.label} className="flex items-center justify-between gap-2 text-[11px]">
+                            <div className="min-w-0 truncate">
+                              <span className="font-medium">{size.label}</span>
+                              <span className="text-muted-foreground tabular-nums ml-1">${size.price.toFixed(2)}</span>
+                            </div>
+                            {q > 0 ? (
+                              <div className="flex items-center gap-1 rounded-full border border-[var(--forest)]/20 bg-white p-0.5 shrink-0">
+                                <StepBtn label="−" onClick={() => line && setQty(line.id, q - 1)} />
+                                <span className="min-w-5 text-center text-[11px] font-bold tabular-nums text-[var(--forest)]">{q}</span>
+                                <StepBtn label="+" onClick={() => addCatalogItem(c, size)} />
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => addCatalogItem(c, size)}
+                                className="shrink-0 text-[11px] font-bold text-[var(--forest)] hover:underline"
+                              >
+                                + Add
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      {totalQty > 0 ? (
+                        <div className="flex items-center gap-1 rounded-full border border-[var(--forest)]/20 bg-white p-0.5">
+                          <StepBtn label="−" onClick={() => {
+                            const line = items.find((i) => i.cartKey === c.id);
+                            if (line) setQty(line.id, line.qty - 1);
+                          }} />
+                          <span className="min-w-6 text-center text-xs font-bold tabular-nums text-[var(--forest)]">{totalQty}</span>
+                          <StepBtn label="+" onClick={() => addCatalogItem(c)} />
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => addCatalogItem(c)}
+                          className="text-[11px] font-bold text-[var(--forest)] hover:underline"
+                        >
+                          + Add
+                        </button>
+                      )}
+                      {totalQty > 0 && (
+                        <span className="text-[11px] tabular-nums font-semibold text-[var(--forest)]">
+                          ${(c.price * totalQty).toFixed(2)}
                         </span>
-                        <StepBtn label="+" onClick={() => addCatalogItem(c)} />
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => addCatalogItem(c)}
-                        className="text-[11px] font-bold text-[var(--forest)] hover:underline"
-                      >
-                        + Add
-                      </button>
-                    )}
-                    {qty > 0 && (
-                      <span className="text-[11px] tabular-nums font-semibold text-[var(--forest)]">
-                        ${(c.price * qty).toFixed(2)}
-                      </span>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
+
           <ul className="mt-4 divide-y divide-border">
             {items.map((it) => (
               <li key={it.id} className="grid grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 gap-y-2 py-2.5 min-w-0">
@@ -708,10 +732,16 @@ function NeighborView({ userId }: { userId: string }) {
         />
       )}
 
-
+      <VerifyPhoneModal
+        open={showVerify}
+        onOpenChange={setShowVerify}
+        initialPhone={profile?.phone_e164 || profile?.phone || ""}
+        onVerified={() => { void refetchProfile(); }}
+      />
     </div>
   );
 }
+
 
 function StepBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (

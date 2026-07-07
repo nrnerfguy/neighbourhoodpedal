@@ -149,38 +149,56 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string
+          bio: string
           city: string
           created_at: string
+          delivery_instructions: string
           display_name: string
           home_address: string
           home_lat: number | null
           home_lng: number | null
           id: string
           phone: string
+          phone_e164: string
+          phone_verified_at: string | null
+          pronouns: string
+          sms_notifications: boolean
           updated_at: string
         }
         Insert: {
           avatar_url?: string
+          bio?: string
           city?: string
           created_at?: string
+          delivery_instructions?: string
           display_name?: string
           home_address?: string
           home_lat?: number | null
           home_lng?: number | null
           id: string
           phone?: string
+          phone_e164?: string
+          phone_verified_at?: string | null
+          pronouns?: string
+          sms_notifications?: boolean
           updated_at?: string
         }
         Update: {
           avatar_url?: string
+          bio?: string
           city?: string
           created_at?: string
+          delivery_instructions?: string
           display_name?: string
           home_address?: string
           home_lat?: number | null
           home_lng?: number | null
           id?: string
           phone?: string
+          phone_e164?: string
+          phone_verified_at?: string | null
+          pronouns?: string
+          sms_notifications?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -248,6 +266,7 @@ export type Database = {
           in_stock: boolean
           name: string
           price: number
+          sizes: Json
           sort_order: number
           store_id: string
           updated_at: string
@@ -260,6 +279,7 @@ export type Database = {
           in_stock?: boolean
           name: string
           price?: number
+          sizes?: Json
           sort_order?: number
           store_id: string
           updated_at?: string
@@ -272,6 +292,7 @@ export type Database = {
           in_stock?: boolean
           name?: string
           price?: number
+          sizes?: Json
           sort_order?: number
           store_id?: string
           updated_at?: string
@@ -297,6 +318,7 @@ export type Database = {
           id: string
           lat: number | null
           lng: number | null
+          logo_url: string
           name: string
           sort_order: number
           tag: string
@@ -312,6 +334,7 @@ export type Database = {
           id?: string
           lat?: number | null
           lng?: number | null
+          logo_url?: string
           name: string
           sort_order?: number
           tag?: string
@@ -327,6 +350,7 @@ export type Database = {
           id?: string
           lat?: number | null
           lng?: number | null
+          logo_url?: string
           name?: string
           sort_order?: number
           tag?: string
