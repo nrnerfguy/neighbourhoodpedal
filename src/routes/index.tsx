@@ -26,6 +26,17 @@ import { useProfile, isPhoneVerified } from "@/lib/profile";
 import { StoreLogo } from "@/components/StoreLogo";
 import { VerifyPhoneModal } from "@/components/VerifyPhoneModal";
 import { GigFilters, useGigFilters, type GigFilterState } from "@/components/GigFilters";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bike, ShoppingBag, Clock, ShieldCheck, Sparkles, ArrowRight,
+  MapPin, DollarSign, Wallet, Leaf, Zap, Banknote, ChevronRight, Store,
+} from "lucide-react";
+import starbucksLogo from "@/assets/starbucks-logo.png.asset.json";
+import dominosLogo from "@/assets/dominos-logo.png.asset.json";
+import sobeysLogo from "@/assets/sobeys-logo.png.asset.json";
+import circlekLogo from "@/assets/circlek-logo.png.asset.json";
 
 
 export const Route = createFileRoute("/")({
@@ -65,32 +76,547 @@ function PedalApp() {
   );
 }
 
+/* ---------------- Landing Sections (SignInGate) ---------------- */
+
+function PreviewItem({ emoji, name, price }: { emoji: string; name: string; price: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-white px-3 py-2.5">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className="text-lg shrink-0" aria-hidden>{emoji}</span>
+        <span className="text-sm font-medium truncate">{name}</span>
+      </div>
+      <span className="text-sm tabular-nums text-muted-foreground">{price}</span>
+    </div>
+  );
+}
+
+function LandingHero() {
+  return (
+    <section className="relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-[var(--mint-soft)] via-white to-white" />
+      <div className="pointer-events-none absolute -top-32 -left-32 -z-10 h-96 w-96 rounded-full bg-[var(--primary)]/35 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-32 -z-10 h-[28rem] w-[28rem] rounded-full bg-[var(--forest)]/10 blur-3xl" />
+      <svg
+        className="pointer-events-none absolute inset-0 -z-10 h-full w-full opacity-[0.05] text-forest"
+        aria-hidden
+      >
+        <defs>
+          <pattern id="lp-grid" width="36" height="36" patternUnits="userSpaceOnUse">
+            <path d="M 36 0 L 0 0 0 36" fill="none" stroke="currentColor" strokeWidth="1" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#lp-grid)" />
+      </svg>
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14 lg:pt-20 pb-16 sm:pb-24 lg:pb-28">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+          <div className="lg:col-span-7">
+            <Badge
+              variant="outline"
+              className="inline-flex items-center gap-2 rounded-full border-primary/40 bg-[var(--mint-soft)] text-[var(--forest)] px-3 py-1.5 text-[11px] font-semibold"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+              </span>
+              Now live in Maple Heights · 12+ neighborhoods
+            </Badge>
+
+            <h1 className="mt-6 text-[40px] sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.02] text-foreground">
+              Your neighborhood,{" "}
+              <span className="bg-gradient-to-br from-[var(--forest)] via-[var(--forest)] to-[var(--primary)] bg-clip-text text-transparent">
+                delivered by bicycle.
+              </span>
+            </h1>
+
+            <p className="mt-5 sm:mt-6 text-base sm:text-lg text-muted-foreground max-w-xl">
+              A hyper-local delivery co-op. Neighbors place a quick errand, a local
+              rider on a bike picks it up and drops it off — and keeps{" "}
+              <span className="font-semibold text-foreground">90% of every fee</span>.
+            </p>
+
+            <div className="mt-7 sm:mt-8 flex flex-wrap items-center gap-3">
+              <Button
+                asChild
+                size="lg"
+                className="rounded-2xl px-7 h-12 sm:h-14 text-base sm:text-lg font-bold bg-primary text-[var(--forest)] shadow-[var(--shadow-mint)] hover:brightness-105 hover:scale-[1.01] active:scale-[0.99] transition border border-[var(--forest)]/15"
+              >
+                <Link to="/auth">
+                  Sign in to Pedal
+                  <ArrowRight className="ml-1.5 h-5 w-5" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="rounded-2xl px-6 h-12 sm:h-14 text-base sm:text-lg font-semibold"
+              >
+                <Link to="/rider-application">
+                  <Bike className="mr-2 h-5 w-5" />
+                  I'm a rider — apply
+                </Link>
+              </Button>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs sm:text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-[var(--forest)]" /> Stripe Connect escrow
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Leaf className="h-4 w-4 text-[var(--forest)]" /> Zero-emission runs
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <DollarSign className="h-4 w-4 text-[var(--forest)]" /> 90% rider payout
+              </span>
+            </div>
+          </div>
+
+          {/* Right: floating preview card */}
+          <div className="lg:col-span-5 relative">
+            <div className="relative mx-auto max-w-md">
+              <div className="absolute -top-6 -right-6 h-40 w-40 rounded-full bg-[var(--primary)]/35 blur-3xl" aria-hidden />
+              <div className="absolute -bottom-8 -left-8 h-44 w-44 rounded-full bg-[var(--forest)]/15 blur-3xl" aria-hidden />
+
+              <div className="relative rounded-3xl border border-border bg-white p-5 sm:p-6 shadow-[var(--shadow-lift)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <IconFrame size="sm" />
+                    <span className="text-sm font-semibold text-foreground">Live in Maple Heights</span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--mint-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--forest)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--forest)] animate-pulse" /> LIVE
+                  </span>
+                </div>
+                <div className="mt-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Order preview</div>
+                <div className="mt-2 space-y-2">
+                  <PreviewItem emoji="🥑" name="Avocado toast" price="$9.50" />
+                  <PreviewItem emoji="☕️" name="Oat latte, grande" price="$5.25" />
+                  <PreviewItem emoji="🍪" name="Chocolate cookie" price="$3.50" />
+                </div>
+
+                <div className="mt-4 rounded-2xl bg-[var(--silver)] p-3 sm:p-4 border border-border">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> You</span>
+                    <span className="inline-flex items-center gap-1"><Store className="h-3 w-3" /> Verde Café · 0.6 mi</span>
+                  </div>
+                  <div className="relative mt-3">
+                    <svg viewBox="0 0 320 60" className="w-full h-14" aria-hidden>
+                      <path d="M10 50 Q 80 5, 160 30 T 310 18" stroke="#0b3d2e" strokeOpacity="0.25" strokeWidth="6" fill="none" strokeLinecap="round" />
+                      <path d="M10 50 Q 80 5, 160 30 T 310 18" stroke="#0b3d2e" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeDasharray="2 5" />
+                      <circle cx="10" cy="50" r="5" fill="#0b3d2e" />
+                      <circle cx="310" cy="18" r="5" fill="#7ef0c3" stroke="#0b3d2e" strokeWidth="2" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Estimated delivery</div>
+                    <div className="text-2xl font-extrabold tabular-nums text-foreground">~18 min</div>
+                  </div>
+                  <Button asChild size="sm" className="rounded-xl bg-primary text-[var(--forest)] font-bold h-10 px-4 shadow-[var(--shadow-mint)] hover:brightness-105">
+                    <Link to="/auth">
+                      Review order <ChevronRight className="ml-1 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+
+                <div className="mt-3 rounded-xl bg-[var(--mint-soft)] px-3 py-2 border border-primary/30">
+                  <div className="flex items-center justify-between text-[11px] text-[var(--forest)]">
+                    <span className="font-semibold">↳ Rider keeps 90%</span>
+                    <span className="font-bold tabular-nums">+$7.20</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating badges */}
+              <div className="hidden sm:flex absolute -left-7 top-14 items-center gap-2 rounded-2xl bg-[var(--forest)] text-white px-3 py-2 shadow-xl -rotate-[4deg]">
+                <Wallet className="h-4 w-4" />
+                <div className="text-[11px] leading-tight">
+                  <div className="opacity-80">This run</div>
+                  <div className="font-bold tabular-nums">+$7.20</div>
+                </div>
+              </div>
+              <div className="hidden sm:flex absolute -right-6 bottom-10 items-center gap-2 rounded-2xl bg-white border border-border shadow-xl rotate-[3deg] px-3 py-2">
+                <Leaf className="h-4 w-4 text-[var(--forest)]" />
+                <div className="text-[11px] leading-tight">
+                  <div className="font-bold text-foreground">0g CO₂</div>
+                  <div className="text-muted-foreground">vs. a car run</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingStats() {
+  const stats: Array<{ Icon: LucideIcon; value: string; label: string; sub: string }> = [
+    { Icon: DollarSign, value: "90%", label: "Rider payout", sub: "of every delivery fee" },
+    { Icon: Leaf, value: "0g", label: "CO\u2082 per run", sub: "bicycle delivery only" },
+    { Icon: Clock, value: "<20", label: "Min ETA", sub: "for the typical errand" },
+    { Icon: Store, value: "12+", label: "Local shops", sub: "small, indie businesses" },
+  ];
+  return (
+    <section className="bg-[var(--forest)] text-white">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {stats.map(({ Icon, value, label, sub }) => (
+            <div
+              key={label}
+              className="rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6 backdrop-blur-sm hover:bg-white/10 transition"
+            >
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--primary)]/20 text-[var(--primary)]">
+                <Icon className="h-5 w-5" strokeWidth={2.2} />
+              </div>
+              <div className="mt-3 text-3xl sm:text-4xl font-extrabold tabular-nums">{value}</div>
+              <div className="text-sm font-semibold mt-1">{label}</div>
+              <div className="text-xs opacity-70 mt-0.5">{sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingSteps() {
+  const steps: Array<{ n: string; Icon: LucideIcon; title: string; copy: string }> = [
+    {
+      n: "1",
+      Icon: ShoppingBag,
+      title: "List what you need",
+      copy: "Pick from a coffee shop, a takeout spot, or the corner grocery. Add drop-off notes, then place the order.",
+    },
+    {
+      n: "2",
+      Icon: Bike,
+      title: "A neighbor pedals over",
+      copy: "A verified rider on your block accepts the gig, shops, picks it up, and bikes it straight to your door.",
+    },
+    {
+      n: "3",
+      Icon: ShieldCheck,
+      title: "Delivered · escrow released",
+      copy: "Funds stay in Stripe Connect escrow until delivery is confirmed. The rider keeps 90%, instantly.",
+    },
+  ];
+  return (
+    <section className="bg-white">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <div className="max-w-2xl">
+          <span className="text-xs font-bold uppercase tracking-widest text-[var(--forest)]">How it works</span>
+          <h2 className="mt-2 text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground">
+            Three steps.{" "}
+            <span className="text-muted-foreground font-semibold">Zero guesswork.</span>
+          </h2>
+        </div>
+        <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+          {steps.map(({ n, Icon, title, copy }) => (
+            <div
+              key={n}
+              className="relative rounded-2xl border border-border bg-white p-6 sm:p-7 shadow-[var(--shadow-soft)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] transition"
+            >
+              <div className="absolute -top-3 -left-3 grid h-9 w-9 place-items-center rounded-full bg-primary text-[var(--forest)] font-extrabold text-sm shadow-[var(--shadow-mint)]">
+                {n}
+              </div>
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[var(--mint-soft)] text-[var(--forest)]">
+                <Icon className="h-6 w-6" strokeWidth={2.2} />
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-foreground">{title}</h3>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{copy}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingPartners() {
+  const partners = [
+    { name: "Starbucks", tag: "Coffee on every corner", emoji: "☕", logo: starbucksLogo.url },
+    { name: "Domino's", tag: "Pizza, fast", emoji: "🍕", logo: dominosLogo.url },
+    { name: "Sobeys", tag: "Groceries & fresh", emoji: "🥑", logo: sobeysLogo.url },
+    { name: "Circle K", tag: "Convenience runs", emoji: "🛒", logo: circlekLogo.url },
+  ];
+  return (
+    <section className="bg-[var(--silver)] border-y border-border">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-8 sm:mb-10">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-widest text-[var(--forest)]">Local shops</span>
+            <h2 className="mt-2 text-2xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+              Real shops, right down the street.
+            </h2>
+          </div>
+          <p className="text-sm sm:text-base text-muted-foreground max-w-md">
+            We only partner with independent stores in your neighborhood — never big-box chains.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {partners.map((p) => (
+            <div
+              key={p.name}
+              className="group rounded-2xl border border-border bg-white p-5 sm:p-6 shadow-[var(--shadow-soft)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] transition"
+            >
+              <div className="grid place-items-center h-24">
+                <img
+                  src={p.logo}
+                  alt={p.name}
+                  className="max-h-20 max-w-[80%] object-contain transition group-hover:scale-[1.02]"
+                  loading="lazy"
+                />
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                <span className="text-lg" aria-hidden>{p.emoji}</span>
+                <span className="font-bold text-foreground">{p.name}</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">{p.tag}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingForRiders() {
+  const runs = [
+    { store: "Verde Café", items: 2, payout: 7.2 },
+    { store: "Domino's", items: 3, payout: 8.55 },
+    { store: "Sobeys", items: 6, payout: 11.25 },
+    { store: "Circle K", items: 1, payout: 5.4 },
+    { store: "Starbucks", items: 2, payout: 6.3 },
+    { store: "Sobeys", items: 4, payout: 8.55 },
+  ];
+  return (
+    <section className="relative overflow-hidden bg-[var(--forest)] text-white">
+      <div className="pointer-events-none absolute inset-0 -z-0">
+        <div className="absolute -top-32 right-10 h-96 w-96 rounded-full bg-[var(--primary)]/30 blur-3xl" />
+        <div className="absolute -bottom-40 left-10 h-[28rem] w-[28rem] rounded-full bg-white/5 blur-3xl" />
+      </div>
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+        <div className="lg:col-span-6">
+          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--primary)]">
+            <Bike className="h-4 w-4" /> For riders
+          </span>
+          <h2 className="mt-3 text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.05]">
+            Keep{" "}
+            <span className="bg-gradient-to-br from-[var(--primary)] to-white bg-clip-text text-transparent">
+              90%
+            </span>{" "}
+            of every fee.
+          </h2>
+          <p className="mt-5 text-base sm:text-lg text-white/80 max-w-xl">
+            Pedal is built around local cyclists. Apply once, get verified,
+            then pick up gigs from the live feed — payouts released the moment
+            your run is delivered.
+          </p>
+          <ul className="mt-6 space-y-3 text-sm text-white/85">
+            {[
+              { Icon: Wallet, copy: "90% of the delivery fee, every time, no exceptions." },
+              { Icon: Zap, copy: "Stripe Connect payouts released instantly on delivery." },
+              { Icon: Clock, copy: "Work on your schedule — open the app, accept a gig, ride." },
+              { Icon: ShieldCheck, copy: "Phone-verified neighbors, escrow-secured payments." },
+            ].map(({ Icon, copy }) => (
+              <li key={copy} className="flex items-start gap-2.5">
+                <span className="mt-0.5 grid h-7 w-7 place-items-center rounded-lg bg-[var(--primary)]/20 text-[var(--primary)] shrink-0">
+                  <Icon className="h-4 w-4" strokeWidth={2.2} />
+                </span>
+                <span>{copy}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <Button
+              asChild
+              size="lg"
+              className="rounded-2xl h-12 px-6 font-bold bg-primary text-[var(--forest)] shadow-[var(--shadow-mint)] hover:brightness-105 border border-white/10"
+            >
+              <Link to="/rider-application">
+                Apply to ride <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="rounded-2xl h-12 px-6 font-semibold bg-transparent border-white/30 text-white hover:bg-white/10 hover:text-white"
+            >
+              <Link to="/auth">Already a rider? Sign in</Link>
+            </Button>
+          </div>
+        </div>
+
+        {/* Earnings mockup card */}
+        <div className="lg:col-span-6 relative">
+          <div className="mx-auto max-w-md rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-6 backdrop-blur-sm shadow-[var(--shadow-lift)]">
+            <div className="flex items-center justify-between">
+              <div className="text-xs uppercase tracking-wider text-white/60">Today · Maple Heights</div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--primary)] text-[var(--forest)] px-2 py-0.5 text-[10px] font-bold">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--forest)] animate-pulse" /> Live
+              </span>
+            </div>
+            <div className="mt-3 flex items-end gap-2">
+              <div className="text-5xl sm:text-6xl font-extrabold tabular-nums">$52.40</div>
+              <div className="mb-2 text-sm text-white/70">/ 6 runs</div>
+            </div>
+            <div className="mt-1 text-xs text-white/70">$58.22 total fees · $5.82 platform (10%)</div>
+
+            <div className="mt-5 space-y-2">
+              {runs.map((r, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Sparkles className="h-3.5 w-3.5 text-[var(--primary)] shrink-0" />
+                    <span className="truncate">{r.store}</span>
+                    <span className="text-white/60">· {r.items} items</span>
+                  </div>
+                  <span className="tabular-nums font-bold text-[var(--primary)]">
+                    +${r.payout.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 rounded-xl bg-[var(--primary)] text-[var(--forest)] px-4 py-3 text-sm font-bold shadow-[var(--shadow-mint)] flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                <Banknote className="h-4 w-4" /> Released to your wallet
+              </span>
+              <span className="tabular-nums">$52.40</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingForNeighbors() {
+  const features: Array<{ Icon: LucideIcon; title: string; copy: string }> = [
+    {
+      Icon: MapPin,
+      title: "Hyper-local, hyper-fast",
+      copy: "Pedal only operates inside a few square miles — that's why most runs arrive in under 20 minutes, on your schedule.",
+    },
+    {
+      Icon: ShieldCheck,
+      title: "Funds in escrow",
+      copy: "Your money sits in Stripe Connect until your order is delivered. No surprise charges, no missed refunds.",
+    },
+    {
+      Icon: Leaf,
+      title: "Zero emissions",
+      copy: "Every run is on a bicycle. We track your CO\u2082 savings and the neighborhood-wide impact right in the app.",
+    },
+  ];
+  return (
+    <section className="bg-[var(--mint-soft)] relative overflow-hidden border-y border-border">
+      <div
+        className="absolute inset-0 -z-0 opacity-30 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)] bg-[radial-gradient(circle_at_center,var(--primary)_1px,transparent_1px)] [background-size:24px_24px]"
+        aria-hidden
+      />
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <div className="max-w-2xl">
+          <span className="text-xs font-bold uppercase tracking-widest text-[var(--forest)]">For neighbors</span>
+          <h2 className="mt-2 text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground">
+            Built for the block,{" "}
+            <span className="text-muted-foreground">not the planet.</span>
+          </h2>
+          <p className="mt-4 text-base sm:text-lg text-muted-foreground max-w-xl">
+            Pedal is small by design. We grow one neighborhood at a time, so
+            your run is always close, fast, and put back into your local economy.
+          </p>
+        </div>
+        <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+          {features.map(({ Icon, title, copy }) => (
+            <div
+              key={title}
+              className="rounded-2xl border border-border bg-white p-6 sm:p-7 shadow-[var(--shadow-soft)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] transition"
+            >
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[var(--mint-soft)] text-[var(--forest)]">
+                <Icon className="h-6 w-6" strokeWidth={2.2} />
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-foreground">{title}</h3>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{copy}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingFinalCta() {
+  return (
+    <section className="relative overflow-hidden bg-white">
+      <div
+        className="absolute inset-0 -z-0 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)] bg-[radial-gradient(circle_at_50%_120%,var(--mint-soft),transparent_60%)]"
+        aria-hidden
+      />
+      <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center">
+        <Badge
+          variant="outline"
+          className="inline-flex items-center gap-2 rounded-full border-primary/40 bg-[var(--mint-soft)] text-[var(--forest)] px-3 py-1.5 text-[11px] font-semibold"
+        >
+          <Sparkles className="h-3 w-3" />
+          Free to join · No subscription
+        </Badge>
+        <h2 className="mt-5 text-3xl sm:text-6xl font-extrabold tracking-tight text-foreground leading-[1.05]">
+          Ready to leave the car keys?
+        </h2>
+        <p className="mt-4 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+          Sign in to place your first run, or apply to ride and turn your
+          neighborhood into your office.
+        </p>
+        <div className="mt-7 sm:mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Button
+            asChild
+            size="lg"
+            className="rounded-2xl h-14 px-8 text-lg font-bold bg-primary text-[var(--forest)] shadow-[var(--shadow-mint)] hover:brightness-105"
+          >
+            <Link to="/auth">
+              Sign in to Pedal <ArrowRight className="ml-1 h-5 w-5" />
+            </Link>
+          </Button>
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="rounded-2xl h-14 px-8 text-lg font-semibold"
+          >
+            <Link to="/rider-application">
+              <Bike className="mr-2 h-5 w-5" />
+              Apply to ride
+            </Link>
+          </Button>
+        </div>
+        <div className="mt-6 text-xs text-muted-foreground">
+          No credit card to sign in. Riders apply once and get a response within 48 hours.
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function SignInGate() {
   return (
-    <div className="min-h-dvh bg-[var(--silver)] flex flex-col">
+    <div className="min-h-dvh bg-[var(--silver)] text-foreground flex flex-col">
       <TopNav mode="neighbor" setMode={() => {}} authed={false} />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 sm:px-6 py-16 sm:py-24 text-center">
-        <div className="mx-auto mb-6"><IconFrame size="xl" /></div>
-        <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground">
-          Your neighborhood, delivered by bike.
-        </h1>
-        <p className="mt-4 text-base text-muted-foreground max-w-xl mx-auto">
-          Sign in to place a local store run, or hop in as a rider and earn 90% of every delivery fee.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            to="/auth"
-            className="rounded-2xl bg-primary text-[var(--forest)] font-bold px-6 py-3 shadow-[var(--shadow-mint)] hover:brightness-105 active:scale-[0.99] transition border border-[var(--forest)]/15"
-          >
-            Sign in to Pedal
-          </Link>
-          <Link
-            to="/auth"
-            className="rounded-2xl border border-border bg-white font-semibold px-6 py-3 hover:bg-white/80 transition"
-          >
-            Create an account
-          </Link>
-        </div>
+      <main className="flex-1">
+        <LandingHero />
+        <LandingStats />
+        <LandingSteps />
+        <LandingPartners />
+        <LandingForRiders />
+        <LandingForNeighbors />
+        <LandingFinalCta />
       </main>
       <Footer />
     </div>
