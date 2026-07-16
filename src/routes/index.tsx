@@ -80,12 +80,14 @@ function SignInGate() {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
             to="/auth"
+            search={{ next: undefined }}
             className="rounded-2xl bg-primary text-[var(--forest)] font-bold px-6 py-3 shadow-[var(--shadow-mint)] hover:brightness-105 active:scale-[0.99] transition border border-[var(--forest)]/15"
           >
             Sign in to Pedal
           </Link>
           <Link
             to="/auth"
+            search={{ next: undefined }}
             className="rounded-2xl border border-border bg-white font-semibold px-6 py-3 hover:bg-white/80 transition"
           >
             Create an account
@@ -105,7 +107,7 @@ function TopNav({ mode, setMode, authed }: { mode: Mode; setMode: (m: Mode) => v
   const handleSignOut = async () => {
     await signOut();
     toast.success("Signed out");
-    navigate({ to: "/auth" });
+    navigate({ to: "/auth", search: { next: undefined } });
   };
 
   return (
@@ -148,6 +150,7 @@ function TopNav({ mode, setMode, authed }: { mode: Mode; setMode: (m: Mode) => v
           ) : (
             <Link
               to="/auth"
+              search={{ next: undefined }}
               className="shrink-0 text-xs font-bold text-[var(--forest)] hover:underline px-2 py-1"
             >
               Sign in

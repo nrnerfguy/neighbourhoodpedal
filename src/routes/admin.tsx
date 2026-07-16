@@ -35,7 +35,7 @@ function AdminPage() {
     return <div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">Loading…</div>;
   }
   if (!user) {
-    return <Gate message="Sign in required." action={<Link to="/auth" className="underline">Sign in</Link>} />;
+    return <Gate message="Sign in required." action={<Link to="/auth" search={{ next: undefined }} className="underline">Sign in</Link>} />;
   }
   if (!isAdmin) {
     return <Gate message="You don't have admin access." action={<Link to="/" className="underline">Go home</Link>} />;
