@@ -26,16 +26,16 @@ export type Store = {
 /**
  * Derive a public-served logo URL for a store when the DB has no logo_url.
  *
- * Assets live in `public/logos/<name>.svg` and are served at `/logos/<name>.svg`
- * by Vercel (no CDN proxy). Drop a brand SVG into `public/logos/` matching the
+ * Assets live in `public/logos/<name>.png` and are served at `/logos/<name>.png`
+ * by Vercel (no CDN proxy). Drop a brand PNG into `public/logos/` matching the
  * filename below and it lights up automatically.
  *
  * Resolution order:
  *   1) Explicit brand override by substring match (case-insensitive). This
  *      keeps the filenames short even when the DB row name is long, e.g.
- *      "Domino's Pizza" -> /logos/dominos.svg.
+ *      "Domino's Pizza" -> /logos/dominos.png.
  *   2) Generic slug of the full store name. Word order is preserved so
- *      "Maple Heights Grocery" -> /logos/maple-heights-grocery.svg.
+ *      "Maple Heights Grocery" -> /logos/maple-heights-grocery.png.
  *
  * If no file matches, StoreLogo falls back to an emoji chip.
  */
@@ -62,13 +62,13 @@ const BRAND_OVERRIDES: Array<{ key: string; file: string }> = [
 export function inferLogoUrl(storeName: string): string {
   const lower = storeName.toLowerCase().normalize("NFKD");
   for (const { key, file } of BRAND_OVERRIDES) {
-    if (lower.includes(key)) return `/logos/${file}.svg`;
+    if (lower.includes(key)) return `/logos/${file}.png`;
   }
   const slug = lower
     .replace(/['\u2018\u2019]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return slug ? `/logos/${slug}.svg` : "";
+  return slug ? `/logos/${slug}.png` : "";
 }
 
 /** Loads active stores + items from the DB. Returns null while loading. */

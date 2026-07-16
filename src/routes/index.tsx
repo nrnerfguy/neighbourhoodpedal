@@ -198,7 +198,7 @@ function EscrowChip() {
 
 /** Square, borderless frame for the Pedal icon.
  *
- *  Tries `/pedal-icon.svg` from the static public/ folder first (Vercel serves
+ *  Tries `/pedal-icon.png` from the static public/ folder first (Vercel serves
  *  it at the site root); if the file is missing the inline `PedalBrandSvg`
  *  fallback is rendered instead so the brand is never invisible. */
 export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" }) {
@@ -211,14 +211,14 @@ export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" })
   );
 }
 
-/** Tries the real `public/pedal-icon.svg` first; falls back to the inline brand
+/** Tries the real `public/pedal-icon.png` first; falls back to the inline brand
  *  mark so the icon is never blank even if the SVG hasn't been uploaded yet. */
 function BrandLogo({ className }: { className?: string }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <PedalBrandSvg className={className} />;
   return (
     <img
-      src="/pedal-icon.svg"
+      src="/pedal-icon.png"
       alt="Pedal"
       className={className ?? "w-full h-full block"}
       onError={() => setFailed(true)}
@@ -227,7 +227,7 @@ function BrandLogo({ className }: { className?: string }) {
 }
 
 /** Inline brand mark — green rounded-square with a white cyclist + delivery box.
- *  Used as the fallback when `public/pedal-icon.svg` isn't deployed (yet). */
+ *  Used as the fallback when `public/pedal-icon.png` isn't deployed (yet). */
 function PedalBrandSvg({ className }: { className?: string }) {
   return (
     <svg
