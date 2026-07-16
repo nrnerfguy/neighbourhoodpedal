@@ -147,22 +147,54 @@ function AuthPage() {
     if (busy) return;
     setBusy(true);
     try {
-      // Bypass `lovable.auth.signInWithOAuth` because its `/~oauth/*` initiate
-      // endpoint returns 404 on this deployment (the Lovable Cloud edge proxy
-      // is not wired up here). Supabase's own OAuth URL lives on supabase.co and
-      // works regardless of deployment topology.
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Use Supabase's own OAuth endpoint (skips the broken lovable wrapper).
+      // `skipBrowserRedirect: true` so we can probe the URL before triggering
+      // the top-level navigation — that's how we catch the "missing OAuth
+      // secret" case from a clean toast instead of a confusing 400 page.
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // After Google consent, Supabase exchanges the code and 302s the
-          // browser back here. useAuth's onAuthStateChange listener picks up
-          // the session via the URL hash on the next page load.
+          skipBrowserRedirect: true,
           redirectTo: `${window.location.origin}${nextPath === "/" ? "/" : nextPath}`,
         },
       });
       if (error) throw error;
-      // supabase-js performs the top-level redirect internally; we just wait
-      // for the browser to come back.
+      const url = data?.url;
+      if (!url) throw new Error("Google sign-in did not return an authorize URL.");
+
+      // Probe. If Google is unconfigured: 400 JSON with "missing OAuth secret".
+      // If configured: 302 redirect to accounts.google.com, which fails CORS
+      // in our `mode: "cors"` fetch — and we treat that as the "OK, proceed" signal.
+      let providerLooksConfigured = true;
+      try {
+        const probe = await fetch(url, {
+          method: "GET",
+          mode: "cors",
+          credentials: "omit",
+          redirect: "follow",
+        });
+        if (probe.status === 400) {
+          const body = await probe.text();
+          if (
+            body.includes("missing OAuth secret") ||
+            body.includes("Unsupported provider")
+          ) {
+            providerLooksConfigured = false;
+          }
+        }
+      } catch {
+        // Cross-origin redirect to accounts.google.com — provider is configured.
+      }
+
+      if (!providerLooksConfigured) {
+        toast.error(
+          "Google sign-in isn't configured on this project yet. Enable it in Supabase → Authentication → Providers with a Google OAuth client_id and client_secret, or use email sign-up below."
+        );
+        return;
+      }
+
+      // Hand off to the browser for the OAuth round-trip.
+      window.location.assign(url);
     } catch (err) {
       toast.error(friendlyError((err as Error).message ?? "Google sign-in failed"));
     } finally {

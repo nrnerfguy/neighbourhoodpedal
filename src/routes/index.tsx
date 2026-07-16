@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import pedalIcon from "@/assets/pedal-icon.png.asset.json";
 import {
   useSettings,
   formatDistance,
@@ -203,8 +202,40 @@ export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" })
     size === "sm" ? "w-7 h-7" : size === "lg" ? "w-12 h-12" : size === "xl" ? "w-16 h-16" : "w-10 h-10";
   return (
     <span className={`inline-grid place-items-center ${dim} shrink-0 overflow-hidden`}>
-      <img src={pedalIcon.url} alt="Pedal" className="w-full h-full object-cover block" />
+      <PedalBrandSvg />
     </span>
+  );
+}
+
+/** Inline brand mark — green rounded-square with a white cyclist + delivery box.
+ *  Previously loaded from `pedal-icon.png.asset.json`, which 404'd on the asset
+ *  CDN. Inlining keeps the brand visible with zero network dependency. */
+function PedalBrandSvg({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className ?? "w-full h-full block"}
+      role="img"
+      aria-label="Pedal"
+    >
+      <rect width="100" height="100" rx="22" ry="22" fill="#22C55E" />
+      <g fill="#FFFFFF">
+        <circle cx="40" cy="30" r="7.5" />
+        <path d="M30 50 Q35 38 50 40 L60 50 Q54 56 50 60 L36 58 Q30 56 30 50 Z" />
+        <path d="M62 32 H82 V54 H62 Z" />
+        <path d="M69 32 V26 H77 V32 H69 Z" />
+      </g>
+      <g fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round">
+        <circle cx="28" cy="76" r="9" />
+        <circle cx="74" cy="76" r="9" />
+        <path d="M28 76 L52 56 L74 76" />
+      </g>
+      <g fill="#FFFFFF">
+        <circle cx="28" cy="76" r="2" />
+        <circle cx="74" cy="76" r="2" />
+      </g>
+    </svg>
   );
 }
 
@@ -1050,11 +1081,7 @@ function RideOverlay() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none">
       <div className="relative h-32 overflow-hidden">
-        <img
-          src={pedalIcon.url}
-          alt=""
-          className="absolute bottom-2 left-0 w-20 h-20 animate-pedal-ride"
-        />
+        <PedalBrandSvg className="absolute bottom-2 left-0 w-20 h-20 animate-pedal-ride" />
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--forest)]/30 to-transparent" />
       </div>
     </div>
