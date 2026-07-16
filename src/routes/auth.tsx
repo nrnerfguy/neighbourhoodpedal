@@ -1,8 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/use-auth";
+import {
+  emailSignInWithFirebase,
+  emailSignUpWithFirebase,
+  googleSignInWithFirebase,
+  isFirebaseConfigured,
+  sendPasswordResetViaFirebase,
+} from "@/integrations/firebase/client";
 import { IconFrame } from "./index";
 
 // Same-site relative paths only — never trust `?next=` to send users elsewhere.
@@ -38,6 +44,37 @@ const FRIENDLY_ERRORS: Array<[string, string]> = [
   ["over_email_send_rate_limit", "Too many emails sent — please wait a minute before trying again."],
   ["captcha_failed", "Captcha check failed. Refresh and try again."],
 ];
+
+// Map Firebase Auth error codes to plain English.
+//   auth/email-already-in-use, auth/invalid-credential, etc.
+function friendlyFirebaseError(msg: string): string {
+  const low = (msg ?? "").toLowerCase();
+  if (low.includes("auth/email-already-in-use") || low.includes("email-already-in-use")) {
+    return "That email already has an account — try signing in instead.";
+  }
+  if (
+    low.includes("auth/invalid-credential") ||
+    low.includes("auth/invalid-password") ||
+    low.includes("auth/invalid-email") ||
+    low.includes("auth/wrong-password")
+  ) {
+    return "That email and password don't match. Try again, or use 'Forgot password?'.";
+  }
+  if (low.includes("auth/weak-password")) {
+    return "Password is too weak. Use at least 8 characters with a mix of letters and numbers.";
+  }
+  if (low.includes("auth/popup-closed-by-user") || low.includes("popup closed")) {
+    return "Google sign-in was cancelled. Try again when you're ready.";
+  }
+  if (low.includes("auth/network-request-failed") || low.includes("network")) {
+    return "Network problem reaching Firebase. Check your connection and try again.";
+  }
+  if (low.includes("auth/too-many-requests")) {
+    return "Too many attempts. Wait a few seconds and try again.";
+  }
+  if (low.length) return msg;
+  return "Something went wrong. Please try again.";
+}
 
 function friendlyError(msg: string): string {
   const low = (msg ?? "").toLowerCase();
@@ -120,22 +157,18 @@ function AuthPage() {
     }
     setBusy(true);
     try {
+      // Firebase Auth is now the identity provider. The serverFn bridge in
+      // useAuth listens for the resulting auth-state change and mints a
+      // Supabase-compatible JWT so RLS continues to work on every query.
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            // After email-verification, send the user back to where they came from.
-            emailRedirectTo: `${window.location.origin}${nextPath === "/" ? "/" : nextPath}`,
-          },
-        });
-        if (error) throw error;
+        await emailSignUpWithFirebase(email, password);
         toast.success("Account created — you're signed in.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        await emailSignInWithFirebase(email, password);
         toast.success("Welcome back!");
       }
+      // useAuth's onAuthStateChanged → bridge→state.user transitions us
+      // through the existing `useEffect` above, which navigates to `nextPath`.
     } catch (err) {
       toast.error(friendlyError((err as Error).message ?? "Sign-in failed"));
     } finally {
@@ -147,56 +180,14 @@ function AuthPage() {
     if (busy) return;
     setBusy(true);
     try {
-      // Use Supabase's own OAuth endpoint (skips the broken lovable wrapper).
-      // `skipBrowserRedirect: true` so we can probe the URL before triggering
-      // the top-level navigation — that's how we catch the "missing OAuth
-      // secret" case from a clean toast instead of a confusing 400 page.
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          skipBrowserRedirect: true,
-          redirectTo: `${window.location.origin}${nextPath === "/" ? "/" : nextPath}`,
-        },
-      });
-      if (error) throw error;
-      const url = data?.url;
-      if (!url) throw new Error("Google sign-in did not return an authorize URL.");
-
-      // Probe. If Google is unconfigured: 400 JSON with "missing OAuth secret".
-      // If configured: 302 redirect to accounts.google.com, which fails CORS
-      // in our `mode: "cors"` fetch — and we treat that as the "OK, proceed" signal.
-      let providerLooksConfigured = true;
-      try {
-        const probe = await fetch(url, {
-          method: "GET",
-          mode: "cors",
-          credentials: "omit",
-          redirect: "follow",
-        });
-        if (probe.status === 400) {
-          const body = await probe.text();
-          if (
-            body.includes("missing OAuth secret") ||
-            body.includes("Unsupported provider")
-          ) {
-            providerLooksConfigured = false;
-          }
-        }
-      } catch {
-        // Cross-origin redirect to accounts.google.com — provider is configured.
-      }
-
-      if (!providerLooksConfigured) {
-        toast.error(
-          "Google sign-in isn't configured on this project yet. Enable it in Supabase → Authentication → Providers with a Google OAuth client_id and client_secret, or use email sign-up below."
-        );
-        return;
-      }
-
-      // Hand off to the browser for the OAuth round-trip.
-      window.location.assign(url);
+      // Firebase's Google sign-in: opens a popup to accounts.google.com,
+      // returns a Firebase ID token, then useAuth's onAuthStateChanged
+      // listener fires → serverFn bridge mints a Supabase JWT → done.
+      await googleSignInWithFirebase();
     } catch (err) {
-      toast.error(friendlyError((err as Error).message ?? "Google sign-in failed"));
+      // Firebase uses codes like "auth/popup-closed-by-user" — surface a
+      // friendly message so we're not yelling status codes at the user.
+      toast.error(friendlyFirebaseError((err as Error).message ?? "Google sign-in failed"));
     } finally {
       setBusy(false);
     }
@@ -210,14 +201,14 @@ function AuthPage() {
     if (busy) return;
     setBusy(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`,
-      });
-      if (error) throw error;
+      // Firebase owns password reset now. The reset link bounces the user
+      // back into the Firebase hosted UI; once they pick a new password,
+      // Firebase's onIdTokenChanged flow re-runs the bridge automatically.
+      await sendPasswordResetViaFirebase(email);
       setForgotSent(true);
       toast.success("Reset link sent — check your inbox.");
     } catch (err) {
-      toast.error(friendlyError((err as Error).message ?? "Could not send reset email"));
+      toast.error(friendlyFirebaseError((err as Error).message ?? "Could not send reset email"));
     } finally {
       setBusy(false);
     }
@@ -249,10 +240,24 @@ function AuthPage() {
           </div>
 
           <div className="p-6 sm:p-8 space-y-4">
+            {!isFirebaseConfigured() && (
+              <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+                <p className="font-bold mb-1">Firebase Auth isn't wired up yet</p>
+                <p>
+                  Ask the site owner to add the following in the Keys tab, then reload this page:
+                </p>
+                <ul className="mt-1.5 ml-4 list-disc font-mono text-[11px]">
+                  <li>VITE_FIREBASE_API_KEY</li>
+                  <li>VITE_FIREBASE_AUTH_DOMAIN</li>
+                  <li>VITE_FIREBASE_PROJECT_ID</li>
+                  <li>VITE_FIREBASE_APP_ID</li>
+                </ul>
+              </div>
+            )}
             <button
               type="button"
               onClick={googleSignIn}
-              disabled={busy}
+              disabled={busy || !isFirebaseConfigured()}
               className="w-full rounded-xl border border-border bg-white py-3 text-sm font-semibold hover:bg-[var(--silver)] transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <GoogleIcon />
@@ -362,7 +367,7 @@ function AuthPage() {
 
             <div className="flex items-center justify-center gap-1.5 pt-3 mt-1 border-t border-border text-[10px] uppercase tracking-[0.14em] font-bold text-muted-foreground">
               <LockIcon />
-              <span>Encrypted · HTTPS · Supabase</span>
+              <span>Encrypted · HTTPS · Firebase + Supabase</span>
             </div>
           </div>
         </div>

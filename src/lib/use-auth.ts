@@ -1,48 +1,121 @@
+// Hook: tracks the user's auth state and bridges it through to Supabase
+// RLS so every downstream `supabase.from('...')` call keeps working.
+//
+// Flow on every Firebase auth state change:
+//
+//   firebase onAuthStateChanged(fbUser)
+//       │
+//       ▼
+//   getIdToken()                                    [browser]
+//       │
+//       ▼
+//   serverFn  post /api  bridgeFirebaseSession(idToken)
+//       │   (firebase-admin verifyIdToken, uuidv5, ensure auth.users,
+//       │    sign SUPABASE_JWT_SECRET-signed JWT)
+//       ▼
+//   localStorage['pedal.bridge.jwt'] = token          [browser]
+//       │
+//       ▼
+//   createSupabaseFetch reads it on every request     [browser]
+//       ▼
+//   PostgREST receives the bearer, RLS reads auth.uid() = sub
+//
+// The export shape (`{ user, loading }`) is preserved so existing
+// downstream consumers (admin.tsx, rider-application.tsx, etc.) keep
+// destructuring `{ user }` unchanged. The local `User` type swaps the
+// Supabase `User` shape for a smaller one with the fields we use: `id`,
+// `email`. `id` is the Supabase UUID that RLS rows join on; `email` is for
+// UI display. Profile/lat/lng/etc. are intentionally not in this type —
+// they live on the `profiles` table, fetched by `useProfile(user?.id)`.
+
 import { useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  isFirebaseConfigured,
+  signOutFromFirebase,
+  watchFirebaseAuth,
+  type FirebaseUser,
+} from "@/integrations/firebase/client";
+import { BRIDGE_TOKEN_KEY } from "@/lib/bridge-token";
+
+export type User = {
+  id: string; // supabase UUID (deterministic mapping of firebase uid)
+  email: string | null;
+  firebaseUid: string;
+};
+
+type BridgeResult = {
+  token: string;
+  supabaseUserId: string;
+  email: string;
+  expiresAt: number;
+};
+
+async function runBridge(idToken: string): Promise<BridgeResult> {
+  // ServerFn imported dynamically to keep the bridge endpoint code out of
+  // every consumer's bundle until it's actually invoked.
+  const mod = await import("@/lib/bridge-auth.functions");
+  return (await mod.bridgeFirebaseSession({ data: { idToken } })) as BridgeResult;
+}
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
-  // Default to `false` so SSR / the very first paint do NOT blank the entire
-  // UI behind an indefinite "Loading…" gate. The useEffect below still
-  // resolves the real session on mount (and leaves `user=null` when signed
-  // out, so signed-out users see the public routes immediately).
-  const [loading, setLoading] = useState(false);
+  // Don't blank the UI behind a permanent loader on first paint. If Firebase
+  // isn't configured, go straight to "signed out"; otherwise surface a brief
+  // loading state until the bridge promise resolves.
+  const [loading, setLoading] = useState(!isFirebaseConfigured() ? false : true);
 
   useEffect(() => {
-    let mounted = true;
-    const finalize = (u: User | null) => {
-      if (!mounted) return;
-      setUser(u);
+    if (!isFirebaseConfigured()) {
+      setUser(null);
       setLoading(false);
-    };
-
-    try {
-      // Subscribe FIRST so we don't miss events emitted while getSession runs.
-      const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-        finalize(session?.user ?? null);
-      });
-
-      // Then hydrate. If init throws or the network hangs, fall through to
-      // "signed out" instead of stranding the UI on a permanent spinner.
-      supabase.auth
-        .getSession()
-        .then(({ data }) => finalize(data.session?.user ?? null))
-        .catch((err) => {
-          console.warn("[useAuth] getSession failed; treating as signed out", err);
-          finalize(null);
-        });
-
-      return () => {
-        mounted = false;
-        sub.subscription.unsubscribe();
-      };
-    } catch (err) {
-      console.warn("[useAuth] auth init failed; treating as signed out", err);
-      if (mounted) setLoading(false);
-      return undefined;
+      return;
     }
+    let cancelled = false;
+    const unsub = watchFirebaseAuth(async (fbUser: FirebaseUser | null) => {
+      if (cancelled) return;
+      if (!fbUser) {
+        try {
+          window.localStorage.removeItem(BRIDGE_TOKEN_KEY);
+        } catch {
+          // ignore
+        }
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      try {
+        const idToken = await fbUser.getIdToken(true);
+        const result = await runBridge(idToken);
+        if (cancelled) return;
+        try {
+          window.localStorage.setItem(BRIDGE_TOKEN_KEY, result.token);
+        } catch {
+          // private mode etc. — fetch will run without the header and RLS
+          // will simply return zero rows, which is the safe failure mode.
+        }
+        setUser({
+          id: result.supabaseUserId,
+          email: result.email,
+          firebaseUid: fbUser.uid,
+        });
+      } catch (err) {
+        console.error("[useAuth] firebase→supabase bridge failed", err);
+        if (!cancelled) {
+          try {
+            window.localStorage.removeItem(BRIDGE_TOKEN_KEY);
+          } catch {
+            // ignore
+          }
+          setUser(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, []);
 
   return { user, loading };
@@ -50,7 +123,14 @@ export function useAuth() {
 
 export async function signOut() {
   try {
-    await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(BRIDGE_TOKEN_KEY);
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    await signOutFromFirebase();
   } catch (err) {
     console.warn("[signOut] ignored", err);
   }
