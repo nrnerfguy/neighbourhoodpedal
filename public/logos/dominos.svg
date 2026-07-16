@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" role="img" aria-label="Domino's Pizza">
+  <!-- blue half on top-left -->
+  <polygon points="0,0 220,0 110,110" fill="#006491"/>
+  <!-- red half on bottom-right -->
+  <polygon points="0,220 220,220 110,110" fill="#E21A23"/>
+  <!-- white border along the diagonal -->
+  <line x1="0" y1="0" x2="220" y2="220" stroke="#FFFFFF" stroke-width="14"/>
+  <!-- three pips on the blue half -->
+  <g fill="#FFFFFF">
+    <circle cx="48" cy="58" r="11"/>
+    <circle cx="84" cy="42" r="11"/>
+    <circle cx="76" cy="84" r="11"/>
+  </g>
+  <!-- one pip on the red half -->
+  <g fill="#FFFFFF">
+    <circle cx="156" cy="150" r="13"/>
+  </g>
+</svg>

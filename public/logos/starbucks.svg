@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" role="img" aria-label="Starbucks">
+  <circle cx="110" cy="110" r="100" fill="#006241"/>
+  <circle cx="110" cy="110" r="92" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  <g fill="#FFFFFF" transform="translate(110 110)">
+    <!-- crown / hair top -->
+    <path d="M-30 -68 L-22 -50 L-12 -68 L-4 -50 L4 -68 L12 -50 L22 -68 L30 -50 L34 -40
+             Q22 -44 14 -38 Q6 -44 -2 -38 Q-12 -44 -22 -38 Q-30 -44 -34 -42 Z"/>
+    <!-- face -->
+    <ellipse cx="0" cy="-10" rx="22" ry="28"/>
+    <!-- eyes -->
+    <circle cx="-7" cy="-15" r="2" fill="#006241"/>
+    <circle cx="7" cy="-15" r="2" fill="#006241"/>
+    <!-- nose / smile -->
+    <path d="M0 -8 Q2 -2 0 4" stroke="#006241" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M-8 6 Q0 12 8 6" stroke="#006241" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- flowing hair on each side -->
+    <path d="M-22 -6 Q-30 10 -28 28 Q-32 36 -28 44 Q-30 56 -22 60 Q-18 50 -16 38 Q-12 26 -14 14 Z"/>
+    <path d="M22 -6 Q30 10 28 28 Q32 36 28 44 Q30 56 22 60 Q18 50 16 38 Q12 26 14 14 Z"/>
+ |<!-- chin flair -->
+    <path d="M-6 28 Q0 38 6 28 Q14 50 12 64 Q-12 50 -12 64 Q-6 50 -6 28" opacity=".9"/>
+  </g>
+</svg>

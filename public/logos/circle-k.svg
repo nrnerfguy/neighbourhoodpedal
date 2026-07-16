@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Circle K">
+  <rect width="200" height="200" fill="#E2231A"/>
+  <path d="M0 168 L200 168 L200 200 L0 200 Z" fill="#FFC72C"/>
+  <circle cx="100" cy="92" r="56" fill="#FFFFFF"/>
+  <g fill="#E2231A" font-family="Helvetica, Arial Black, sans-serif" font-weight="900" font-size="116">
+    <text x="100" y="130" text-anchor="middle">K</text>
+  </g>
+</svg>
