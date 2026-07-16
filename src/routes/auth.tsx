@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/lib/use-auth";
 import { IconFrame } from "./index";
 
@@ -148,32 +147,22 @@ function AuthPage() {
     if (busy) return;
     setBusy(true);
     try {
-      // The Lovable Cloud OAuth helper has two success shapes:
-      //   1. { redirected: true, url } — we MUST follow the redirect; otherwise the
-      //      user sees a stale page and the provider never receives the request.
-      //   2. (no `redirected`) — the helper already exchanged tokens internally via
-      //      `supabase.auth.setSession(result.tokens)`, so the listener in useAuth
-      //      will pick up the new session and bounce us home on the next tick.
-      const raw = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-        extraParams: nextPath !== "/" ? { next: nextPath } : undefined,
+      // Bypass `lovable.auth.signInWithOAuth` because its `/~oauth/*` initiate
+      // endpoint returns 404 on this deployment (the Lovable Cloud edge proxy
+      // is not wired up here). Supabase's own OAuth URL lives on supabase.co and
+      // works regardless of deployment topology.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          // After Google consent, Supabase exchanges the code and 302s the
+          // browser back here. useAuth's onAuthStateChange listener picks up
+          // the session via the URL hash on the next page load.
+          redirectTo: `${window.location.origin}${nextPath === "/" ? "/" : nextPath}`,
+        },
       });
-      const result = raw as { error?: Error; redirected?: boolean; url?: string } | undefined;
-
-      if (result?.error) throw result.error;
-
-      if (result?.redirected) {
-        // If the helper handed back a URL, follow it (this is the actual OAuth path).
-        if (result.url) {
-          window.location.assign(result.url);
-          return;
-        }
-        // If `redirected` is set but URL is empty, the helper already kicked off
-        // navigation just before resolving — DO NOT race it by hand-redirecting to '/'.
-        return;
-      }
-
-      toast.success("Signed in with Google");
+      if (error) throw error;
+      // supabase-js performs the top-level redirect internally; we just wait
+      // for the browser to come back.
     } catch (err) {
       toast.error(friendlyError((err as Error).message ?? "Google sign-in failed"));
     } finally {
