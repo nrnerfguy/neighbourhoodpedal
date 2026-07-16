@@ -196,20 +196,38 @@ function EscrowChip() {
   );
 }
 
-/** Square, borderless frame for the Pedal icon. */
+/** Square, borderless frame for the Pedal icon.
+ *
+ *  Tries `/pedal-icon.png` from the static public/ folder first (Vercel serves
+ *  it at the site root); if the file is missing the inline `PedalBrandSvg`
+ *  fallback is rendered instead so the brand is never invisible. */
 export function IconFrame({ size = "md" }: { size?: "sm" | "md" | "lg" | "xl" }) {
   const dim =
     size === "sm" ? "w-7 h-7" : size === "lg" ? "w-12 h-12" : size === "xl" ? "w-16 h-16" : "w-10 h-10";
   return (
     <span className={`inline-grid place-items-center ${dim} shrink-0 overflow-hidden`}>
-      <PedalBrandSvg />
+      <BrandLogo />
     </span>
   );
 }
 
+/** Tries the real `public/pedal-icon.png` first; falls back to the inline brand
+ *  mark so the icon is never blank even if the PNG hasn't been uploaded yet. */
+function BrandLogo({ className }: { className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <PedalBrandSvg className={className} />;
+  return (
+    <img
+      src="/pedal-icon.png"
+      alt="Pedal"
+      className={className ?? "w-full h-full block"}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 /** Inline brand mark — green rounded-square with a white cyclist + delivery box.
- *  Previously loaded from `pedal-icon.png.asset.json`, which 404'd on the asset
- *  CDN. Inlining keeps the brand visible with zero network dependency. */
+ *  Used as the fallback when `public/pedal-icon.png` isn't deployed (yet). */
 function PedalBrandSvg({ className }: { className?: string }) {
   return (
     <svg
@@ -1081,7 +1099,7 @@ function RideOverlay() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none">
       <div className="relative h-32 overflow-hidden">
-        <PedalBrandSvg className="absolute bottom-2 left-0 w-20 h-20 animate-pedal-ride" />
+        <BrandLogo className="absolute bottom-2 left-0 w-20 h-20 animate-pedal-ride" />
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--forest)]/30 to-transparent" />
       </div>
     </div>

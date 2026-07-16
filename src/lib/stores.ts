@@ -23,6 +23,24 @@ export type Store = {
   catalog: CatalogItem[];
 };
 
+/**
+ * Derive a public-served logo URL for a store when the DB has no logo_url.
+ *
+ * Assets live in `public/logos/<slug>.png` so Vercel serves them at `/logos/<slug>.png`
+ * with no CDN proxy. Drop the brand PNG into `public/logos/` matching the slug
+ * and it just works. If the file is missing, the StoreLogo component silently
+ * degrades to an emoji chip.
+ */
+export function inferLogoUrl(storeName: string): string {
+  const slug = storeName
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/['\u2018\u2019]/g, "")          // strip apostrophes so "Domino's" -> "dominos"
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug ? `/logos/${slug}.png` : "";
+}
+
 /** Loads active stores + items from the DB. Returns null while loading. */
 export function useDbStores(): { stores: Store[] | null; loading: boolean; error: string | null } {
   const [stores, setStores] = useState<Store[] | null>(null);
@@ -69,19 +87,24 @@ export function useDbStores(): { stores: Store[] | null; loading: boolean; error
         });
         byStore.set(it.store_id, list);
       }
-      const built: Store[] = storeRows.map((s) => ({
-        id: s.id,
-        name: s.name,
-        tag: s.tag ?? "",
-        emoji: s.emoji ?? "🛒",
-        address: s.address ?? "",
-        hours: s.hours ?? "",
-        logoUrl: s.logo_url ?? "",
-        lat: Number(s.lat ?? 0),
-        lng: Number(s.lng ?? 0),
-        miles: 0,
-        catalog: byStore.get(s.id) ?? [],
-      }));
+      const built: Store[] = storeRows.map((s) => {
+        // DB-stored logo_url wins. Otherwise infer from store.name so dropping
+        // a PNG into `public/logos/<slug>.png` lights the brand up automatically.
+        const dbLogo = (s.logo_url ?? "").trim();
+        return {
+          id: s.id,
+          name: s.name,
+          tag: s.tag ?? "",
+          emoji: s.emoji ?? "🛒",
+          address: s.address ?? "",
+          hours: s.hours ?? "",
+          logoUrl: dbLogo || inferLogoUrl(s.name),
+          lat: Number(s.lat ?? 0),
+          lng: Number(s.lng ?? 0),
+          miles: 0,
+          catalog: byStore.get(s.id) ?? [],
+        };
+      });
       setStores(built);
       setLoading(false);
     })();
