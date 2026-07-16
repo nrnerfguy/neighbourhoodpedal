@@ -240,24 +240,10 @@ function AuthPage() {
           </div>
 
           <div className="p-6 sm:p-8 space-y-4">
-            {!isFirebaseConfigured() && (
-              <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900">
-                <p className="font-bold mb-1">Firebase Auth isn't wired up yet</p>
-                <p>
-                  Ask the site owner to add the following in the Keys tab, then reload this page:
-                </p>
-                <ul className="mt-1.5 ml-4 list-disc font-mono text-[11px]">
-                  <li>VITE_FIREBASE_API_KEY</li>
-                  <li>VITE_FIREBASE_AUTH_DOMAIN</li>
-                  <li>VITE_FIREBASE_PROJECT_ID</li>
-                  <li>VITE_FIREBASE_APP_ID</li>
-                </ul>
-              </div>
-            )}
             <button
               type="button"
               onClick={googleSignIn}
-              disabled={busy || !isFirebaseConfigured()}
+              disabled={busy}
               className="w-full rounded-xl border border-border bg-white py-3 text-sm font-semibold hover:bg-[var(--silver)] transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <GoogleIcon />
